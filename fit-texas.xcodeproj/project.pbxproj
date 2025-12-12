@@ -37,9 +37,25 @@
 		342DE8A12ECD41ED0041785D /* fit-texasUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "fit-texasUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		341B88A52EEB91DD0064F0DE /* Exceptions for "fit-texas" folder in "fit-texas" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				exercises,
+			);
+			target = 342DE8892ECD41EC0041785D /* fit-texas */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		342DE88C2ECD41EC0041785D /* fit-texas */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				341B88A52EEB91DD0064F0DE /* Exceptions for "fit-texas" folder in "fit-texas" target */,
+			);
+			explicitFolders = (
+				exercises,
+			);
 			path = "fit-texas";
 			sourceTree = "<group>";
 		};

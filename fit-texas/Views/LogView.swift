@@ -13,7 +13,6 @@ struct LogView: View {
     @State private var exercises: [WorkoutExercise] = []
     @State private var showSuccess: Bool = false
     @State private var isSaving: Bool = false
-    @State private var showExercisePicker: Bool = false
     @State private var showWorkoutNameEditor: Bool = false
 
     // Computed properties for workout stats
@@ -115,7 +114,11 @@ struct LogView: View {
                                 )
                             }
                             
-                            Button(action: { showExercisePicker = true }) {
+                            NavigationLink(destination: ExercisePickerView(
+                                onSelect: { exerciseName in
+                                    addExercise(name: exerciseName)
+                                }
+                            )) {
                                 HStack(spacing: 10) {
                                     Image(systemName: "plus.circle.fill")
                                         .font(.title2)
@@ -135,6 +138,7 @@ struct LogView: View {
                                         )
                                 )
                             }
+                            .buttonStyle(.plain)
                             .padding(.horizontal, 8)
                             .padding(.bottom, 12)
                         }
@@ -156,14 +160,6 @@ struct LogView: View {
                     title: Text("Workout Saved!"),
                     message: Text("Your workout has been logged successfully."),
                     dismissButton: .default(Text("OK"))
-                )
-            }
-            .sheet(isPresented: $showExercisePicker) {
-                ExercisePickerView(
-                    allExercises: sampleExercises,
-                    onSelect: { exerciseName in
-                        addExercise(name: exerciseName)
-                    }
                 )
             }
         }

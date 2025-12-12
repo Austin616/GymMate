@@ -116,7 +116,7 @@ struct ExerciseCard: View {
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(Color(.systemBackground))
                             )
-                            .foregroundColor(isDragging ? .secondary : .primary)
+                            .foregroundColor(.primary)
                             .disabled(disabled || binding.wrappedValue.isCompleted)
                     }
                     // Weight
@@ -133,7 +133,7 @@ struct ExerciseCard: View {
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(Color(.systemBackground))
                             )
-                            .foregroundColor(isDragging ? .secondary : .primary)
+                            .foregroundColor(.primary)
                             .disabled(disabled || binding.wrappedValue.isCompleted)
                     }
                     Spacer()

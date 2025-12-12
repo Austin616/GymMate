@@ -7,6 +7,24 @@
 
 import Foundation
 
+// MARK: - Exercise Database Models
+
+struct Exercise: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let force: String?
+    let level: String?
+    let mechanic: String?
+    let equipment: String?
+    let primaryMuscles: [String]?
+    let secondaryMuscles: [String]?
+    let instructions: [String]?
+    let category: String?
+    let images: [String]?
+}
+
+// MARK: - Workout Models
+
 struct WorkoutExercise: Identifiable, Hashable {
     let id = UUID()
     var name: String
