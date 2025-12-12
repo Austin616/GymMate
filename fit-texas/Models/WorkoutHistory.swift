@@ -8,11 +8,12 @@
 import Foundation
 internal import Combine
 
-struct SavedWorkout: Identifiable, Codable {
+struct SavedWorkout: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
     var date: Date
     var exercises: [WorkoutExercise]
+    var isFavorite: Bool
 
     var totalVolume: Double {
         exercises.reduce(0.0) { total, exercise in
@@ -28,51 +29,86 @@ struct SavedWorkout: Identifiable, Codable {
         exercises.reduce(0) { $0 + $1.sets.count }
     }
 
-    init(id: UUID = UUID(), name: String, date: Date, exercises: [WorkoutExercise]) {
+    init(id: UUID = UUID(), name: String, date: Date, exercises: [WorkoutExercise], isFavorite: Bool = false) {
         self.id = id
         self.name = name
         self.date = date
         self.exercises = exercises
+        self.isFavorite = isFavorite
+    }
+
+    // Custom decoder to handle missing isFavorite field in old workouts
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        date = try container.decode(Date.self, forKey: .date)
+        exercises = try container.decode([WorkoutExercise].self, forKey: .exercises)
+        isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
     }
 }
 
 class WorkoutHistoryManager: ObservableObject {
     @Published var savedWorkouts: [SavedWorkout] = []
+    @Published var isOnline: Bool = true
+    @Published var isSyncing: Bool = false
 
-    private let savePath = FileManager.documentDirectoryPath.appendingPathComponent("workouts.json")
+    private let repository = WorkoutRepository()
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
-        loadWorkouts()
+        print("🔵 [HISTORY] Initializing WorkoutHistoryManager...")
+        observeRepository()
+        print("✅ [HISTORY] WorkoutHistoryManager initialized")
+    }
+
+    private func observeRepository() {
+        print("🔵 [HISTORY] Setting up repository observers...")
+
+        repository.$workouts
+            .sink { [weak self] workouts in
+                print("🔵 [HISTORY] Workouts updated: \(workouts.count) workouts")
+                self?.savedWorkouts = workouts
+            }
+            .store(in: &cancellables)
+
+        repository.$isOnline
+            .sink { [weak self] online in
+                print("🔵 [HISTORY] Online status: \(online)")
+                self?.isOnline = online
+            }
+            .store(in: &cancellables)
+
+        repository.$isSyncing
+            .sink { [weak self] syncing in
+                print("🔵 [HISTORY] Syncing status: \(syncing)")
+                self?.isSyncing = syncing
+            }
+            .store(in: &cancellables)
     }
 
     func saveWorkout(_ workout: SavedWorkout) {
-        savedWorkouts.insert(workout, at: 0)
-        saveToFile()
+        repository.saveWorkout(workout)
     }
 
     func deleteWorkout(_ workout: SavedWorkout) {
-        savedWorkouts.removeAll { $0.id == workout.id }
-        saveToFile()
+        repository.deleteWorkout(workout)
     }
 
-    private func saveToFile() {
-        do {
-            let data = try JSONEncoder().encode(savedWorkouts)
-            try data.write(to: savePath)
-        } catch {
-            print("Error saving workouts: \(error)")
-        }
+    func toggleFavorite(_ workout: SavedWorkout) {
+        var updatedWorkout = workout
+        updatedWorkout.isFavorite.toggle()
+
+        // Update workout (saveWorkout will overwrite the existing one)
+        repository.saveWorkout(updatedWorkout)
     }
 
-    private func loadWorkouts() {
-        guard FileManager.default.fileExists(atPath: savePath.path) else { return }
+    func updateWorkout(_ workout: SavedWorkout) {
+        repository.saveWorkout(workout)
+    }
 
-        do {
-            let data = try Data(contentsOf: savePath)
-            savedWorkouts = try JSONDecoder().decode([SavedWorkout].self, from: data)
-        } catch {
-            print("Error loading workouts: \(error)")
-        }
+    func syncAllWorkouts() {
+        repository.syncAllWorkouts()
     }
 }
 

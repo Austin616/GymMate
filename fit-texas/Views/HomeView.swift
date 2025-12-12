@@ -10,9 +10,19 @@ import FirebaseAuth
 
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
-    
+
     var body: some View {
-        Text("Hello \(authManager.currentUser?.displayName ?? "Anonymous")!")
+        NavigationView {
+            VStack(spacing: 0) {
+                CustomTabHeader(title: "Home")
+
+                VStack {
+                    Text("Hello \(authManager.currentUser?.displayName ?? "Anonymous")!")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .navigationBarHidden(true)
+        }
     }
 }
 

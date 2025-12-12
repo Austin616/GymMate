@@ -10,42 +10,59 @@ import FirebaseAuth
 
 struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
+    @StateObject private var historyManager = WorkoutHistoryManager()
+    @StateObject private var statsManager = StatsManager()
     @State private var showSettings = false
     @State private var selectedDate = Date()
+    @State private var statsLoaded = false
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Profile Header
-                    VStack(spacing: 12) {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.utOrange, Color.utOrange.opacity(0.7)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 100, height: 100)
-                            .overlay(
-                                Text((authManager.currentUser?.email?.prefix(1).uppercased()) ?? "U")
-                                    .font(.system(size: 40, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
-                            .shadow(color: Color.utOrange.opacity(0.3), radius: 12, x: 0, y: 4)
-
-                        VStack(spacing: 4) {
-                            Text(authManager.currentUser?.displayName ?? "User")
-                                .font(.title2)
-                                .fontWeight(.bold)
-
-                            Text(authManager.currentUser?.email ?? "user@example.com")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+            VStack(spacing: 0) {
+                CustomTabHeader(
+                    title: "Profile",
+                    trailingButton: AnyView(
+                        Button(action: {
+                            showSettings = true
+                        }) {
+                            Image(systemName: "gearshape")
+                                .foregroundColor(.utOrange)
+                                .font(.title3)
                         }
-                    }
-                    .padding(.top, 20)
+                    )
+                )
+
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Profile Header
+                        VStack(spacing: 12) {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.utOrange, Color.utOrange.opacity(0.7)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 100, height: 100)
+                                .overlay(
+                                    Text((authManager.currentUser?.email?.prefix(1).uppercased()) ?? "U")
+                                        .font(.system(size: 40, weight: .bold))
+                                        .foregroundColor(.white)
+                                )
+                                .shadow(color: Color.utOrange.opacity(0.3), radius: 12, x: 0, y: 4)
+
+                            VStack(spacing: 4) {
+                                Text(authManager.currentUser?.displayName ?? "User")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+
+                                Text(authManager.currentUser?.email ?? "user@example.com")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.top, 20)
 
                     // Calendar Section
                     VStack(alignment: .leading, spacing: 12) {
@@ -63,30 +80,38 @@ struct ProfileView: View {
                             .font(.headline)
                             .padding(.horizontal)
 
-                        HStack(spacing: 12) {
-                            StatCardProfile(title: "Workouts", value: "0", icon: "figure.strengthtraining.traditional")
-                            StatCardProfile(title: "Streak", value: "0", icon: "flame.fill")
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                StatCardProfile(title: "Workouts", value: "\(statsManager.stats.totalWorkouts)", icon: "figure.strengthtraining.traditional")
+                                StatCardProfile(title: "Streak", value: "\(statsManager.stats.currentStreak)", icon: "flame.fill")
+                            }
+
+                            HStack(spacing: 12) {
+                                StatCardProfile(title: "Volume", value: "\(statsManager.formattedVolume()) kg", icon: "scalemass.fill")
+                                StatCardProfile(title: "This Week", value: "\(statsManager.stats.workoutsThisWeek)", icon: "calendar")
+                            }
                         }
                         .padding(.horizontal)
                     }
-                }
-                .padding(.bottom, 100)
-            }
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showSettings = true
-                    }) {
-                        Image(systemName: "gearshape")
-                            .foregroundColor(.utOrange)
                     }
+                    .padding(.bottom, 100)
                 }
             }
+            .navigationBarHidden(true)
             .sheet(isPresented: $showSettings) {
                 SettingsSheet()
                     .environmentObject(authManager)
+            }
+            .onAppear {
+                if !statsLoaded {
+                    print("📊 [PROFILE] Loading stats...")
+                    statsManager.calculateStats(from: historyManager.savedWorkouts)
+                    statsLoaded = true
+                }
+            }
+            .onChange(of: historyManager.savedWorkouts) { newWorkouts in
+                print("📊 [PROFILE] Workouts changed, recalculating stats...")
+                statsManager.calculateStats(from: newWorkouts)
             }
         }
     }
@@ -266,30 +291,37 @@ struct SettingsSheet: View {
 
     var body: some View {
         NavigationView {
-            List {
-                Section {
-                    Button(action: {
-                        authManager.signOut()
-                        dismiss()
-                    }) {
-                        HStack {
-                            Image(systemName: "arrow.right.square")
-                                .foregroundColor(.red)
-                            Text("Sign Out")
-                                .foregroundColor(.red)
+            VStack(spacing: 0) {
+                CustomTabHeader(
+                    title: "Settings",
+                    trailingButton: AnyView(
+                        Button("Done") {
+                            dismiss()
+                        }
+                        .foregroundColor(.utOrange)
+                        .fontWeight(.semibold)
+                    ),
+                    isSubScreen: true
+                )
+
+                List {
+                    Section {
+                        Button(action: {
+                            authManager.signOut()
+                            dismiss()
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.right.square")
+                                    .foregroundColor(.red)
+                                Text("Sign Out")
+                                    .foregroundColor(.red)
+                            }
                         }
                     }
                 }
+                .listStyle(.insetGrouped)
             }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
+            .navigationBarHidden(true)
         }
     }
 }

@@ -35,10 +35,11 @@ struct NewLogView: View {
                 }
             }
             .navigationTitle("Workouts")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showNewWorkout) {
                 ActiveWorkoutView(
                     historyManager: historyManager,
+                    templateWorkout: nil,
                     onSave: {
                         showNewWorkout = false
                         viewMode = .history
@@ -104,23 +105,23 @@ struct WorkoutHistoryView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
-            }
 
-            // Floating Action Button
-            Button(action: onStartNewWorkout) {
-                Image(systemName: "plus")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(width: 60, height: 60)
-                    .background(
-                        Circle()
-                            .fill(Color.utOrange)
-                            .shadow(color: Color.utOrange.opacity(0.4), radius: 12, x: 0, y: 4)
-                    )
+                // Floating Action Button (only show when there are workouts)
+                Button(action: onStartNewWorkout) {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(width: 60, height: 60)
+                        .background(
+                            Circle()
+                                .fill(Color.utOrange)
+                                .shadow(color: Color.utOrange.opacity(0.4), radius: 12, x: 0, y: 4)
+                        )
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 100)
             }
-            .padding(.trailing, 20)
-            .padding(.bottom, 100)
         }
     }
 }
@@ -130,6 +131,8 @@ struct EmptyWorkoutHistoryView: View {
 
     var body: some View {
         VStack(spacing: 20) {
+            Spacer()
+
             Image(systemName: "figure.strengthtraining.traditional")
                 .font(.system(size: 80))
                 .foregroundColor(.utOrange.opacity(0.5))
@@ -147,19 +150,25 @@ struct EmptyWorkoutHistoryView: View {
             }
 
             Button(action: onStartNewWorkout) {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
+                        .font(.headline)
                     Text("Start New Workout")
+                        .font(.headline)
                         .fontWeight(.semibold)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
-                .background(Color.utOrange)
                 .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.utOrange)
                 .cornerRadius(12)
             }
+            .padding(.horizontal, 40)
             .padding(.top, 8)
+
+            Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -238,15 +247,15 @@ struct WorkoutHistoryRow: View {
 
 struct ActiveWorkoutView: View {
     @ObservedObject var historyManager: WorkoutHistoryManager
+    let templateWorkout: SavedWorkout?
     let onSave: () -> Void
     let onCancel: () -> Void
 
-    @State private var workoutName: String = "Workout"
+    @State private var workoutName: String = ""
     @State private var startTime: Date = Date()
     @State private var exercises: [WorkoutExercise] = []
-    @State private var showSuccess: Bool = false
+    @State private var showNamePrompt: Bool = false
     @State private var isSaving: Bool = false
-    @State private var showWorkoutNameEditor: Bool = false
 
     var totalVolume: Double {
         exercises.reduce(0.0) { total, exercise in
@@ -264,71 +273,55 @@ struct ActiveWorkoutView: View {
 
     var body: some View {
         NavigationView {
-            ZStack {
-                LinearGradient(
-                    gradient: Gradient(colors: [Color(.systemGray6), Color(.systemBackground)]),
-                    startPoint: .top,
-                    endPoint: .bottom
+            VStack(spacing: 0) {
+                CustomTabHeader(
+                    title: "Current Workout",
+                    leadingButton: AnyView(
+                        Button("Cancel") {
+                            onCancel()
+                        }
+                        .foregroundColor(.secondary)
+                    ),
+                    trailingButton: AnyView(
+                        Button(action: saveWorkout) {
+                            if isSaving {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .utOrange))
+                            } else {
+                                Text("Finish")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(exercises.isEmpty ? .secondary : .utOrange)
+                            }
+                        }
+                        .disabled(exercises.isEmpty || isSaving)
+                    ),
+                    isSubScreen: true
                 )
-                .ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    VStack(spacing: 12) {
-                        HStack {
-                            Button(action: { showWorkoutNameEditor = true }) {
-                                HStack(spacing: 6) {
-                                    Text(workoutName)
-                                        .font(.title3)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                    Image(systemName: "chevron.down.circle.fill")
-                                        .font(.subheadline)
-                                        .foregroundColor(.utOrange)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color(.systemBackground))
-                                .clipShape(Capsule())
-                                .shadow(color: Color.black.opacity(0.06), radius: 2, x: 0, y: 2)
-                            }
-                            .buttonStyle(.plain)
-
-                            Spacer()
-
-                            Button(action: saveWorkout) {
-                                if isSaving {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .frame(width: 90, height: 38)
-                                } else {
-                                    Text("Finish")
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                        .frame(width: 90, height: 38)
-                                }
-                            }
-                            .background(exercises.isEmpty ? Color.gray.opacity(0.5) : .utOrange)
-                            .clipShape(Capsule())
-                            .shadow(color: exercises.isEmpty ? Color.clear : Color.utOrange.opacity(0.3), radius: 3, x: 0, y: 2)
-                            .disabled(exercises.isEmpty || isSaving)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.top, 12)
-
-                        HStack(spacing: 8) {
-                            StatCard(title: "Volume", value: String(format: "%.0f kg", totalVolume), icon: "scalemass.fill")
-                            StatCard(title: "Sets", value: "\(totalSets)", icon: "number.circle.fill")
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.bottom, 8)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+                ZStack {
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color(.systemGray6), Color(.systemBackground)]),
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
-                    .padding(.horizontal, 6)
-                    .padding(.top, 8)
+                    .ignoresSafeArea()
+
+                    VStack(spacing: 0) {
+                        VStack(spacing: 12) {
+                            HStack(spacing: 8) {
+                                StatCard(title: "Volume", value: String(format: "%.0f kg", totalVolume), icon: "scalemass.fill")
+                                StatCard(title: "Sets", value: "\(totalSets)", icon: "number.circle.fill")
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 8)
+                        }
+                        .background(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .fill(Color(.systemBackground))
+                                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+                        )
+                        .padding(.horizontal, 6)
+                        .padding(.top, 8)
 
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 12) {
@@ -373,30 +366,24 @@ struct ActiveWorkoutView: View {
                         .padding(.horizontal, 0)
                         .frame(maxWidth: .infinity)
                     }
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        onCancel()
                     }
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .alert("Workout Name", isPresented: $showWorkoutNameEditor) {
-                TextField("Enter workout name", text: $workoutName)
-                Button("Cancel", role: .cancel) { }
-                Button("Save") { }
+            .navigationBarHidden(true)
+            .alert("Name Your Workout", isPresented: $showNamePrompt) {
+                TextField("e.g. Morning Push Day", text: $workoutName)
+                Button("Cancel", role: .cancel) {
+                    isSaving = false
+                }
+                Button("Save") {
+                    completeWorkoutSave()
+                }
+            } message: {
+                Text("Give your workout a memorable name")
             }
-            .alert(isPresented: $showSuccess) {
-                Alert(
-                    title: Text("Workout Saved!"),
-                    message: Text("Your workout has been logged successfully."),
-                    dismissButton: .default(Text("OK")) {
-                        onSave()
-                    }
-                )
+            .onAppear {
+                loadTemplate()
             }
         }
     }
@@ -423,21 +410,46 @@ struct ActiveWorkoutView: View {
         exercises.remove(at: index)
     }
 
+    func loadTemplate() {
+        if let template = templateWorkout {
+            // Load exercises from template but reset completion status
+            exercises = template.exercises.map { exercise in
+                WorkoutExercise(
+                    name: exercise.name,
+                    sets: exercise.sets.map { set in
+                        WorkoutSet(
+                            reps: set.reps,
+                            weight: set.weight,
+                            rpe: set.rpe,
+                            isCompleted: false,
+                            isWarmup: set.isWarmup,
+                            isDropSet: set.isDropSet
+                        )
+                    },
+                    notes: exercise.notes
+                )
+            }
+        }
+    }
+
     func saveWorkout() {
         guard !exercises.isEmpty else { return }
-
         isSaving = true
+        showNamePrompt = true
+    }
+
+    func completeWorkoutSave() {
+        let finalName = workoutName.isEmpty ? "Workout" : workoutName
 
         let workout = SavedWorkout(
-            name: workoutName,
+            name: finalName,
             date: Date(),
             exercises: exercises
         )
 
         historyManager.saveWorkout(workout)
-
         isSaving = false
-        showSuccess = true
+        onSave()
     }
 }
 

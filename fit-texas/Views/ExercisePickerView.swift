@@ -72,6 +72,24 @@ struct ExercisePickerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            CustomTabHeader(
+                title: "Add Exercise",
+                leadingButton: AnyView(
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                            Text("Back")
+                        }
+                        .foregroundColor(.utOrange)
+                    }
+                ),
+                isSubScreen: true
+            )
+
             // Search Bar
             searchBar
 
@@ -111,8 +129,7 @@ struct ExercisePickerView: View {
         .animation(.default, value: viewMode)
         .animation(.default, value: isSearching)
         .animation(.default, value: showFilters)
-        .navigationTitle("Add Exercise")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
         .onChange(of: viewMode) { _ in
             if showFilters {
                 withAnimation {
@@ -576,6 +593,24 @@ struct MuscleExerciseListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            CustomTabHeader(
+                title: muscleGroup,
+                leadingButton: AnyView(
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                            Text("Back")
+                        }
+                        .foregroundColor(.utOrange)
+                    }
+                ),
+                isSubScreen: true
+            )
+
             // Search Bar
             ExerciseSearchBar(
                 searchText: $searchText,
@@ -610,8 +645,7 @@ struct MuscleExerciseListView: View {
             )
         }
         .animation(.default, value: showFilters)
-        .navigationTitle(muscleGroup)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
     }
 }
 

@@ -49,7 +49,7 @@ struct CustomTabBarView: View {
                 case .home:
                     HomeView()
                 case .log:
-                    NewLogView()
+                    WorkoutsView()
                 case .profile:
                     ProfileView()
                 }
