@@ -17,7 +17,6 @@ struct ExercisePickerView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var searchText: String = ""
-    @State private var selectedMuscleGroup: String?
     @State private var muscleGroups: [String] = []
     @State private var showFilters: Bool = false
     @State private var selectedEquipment: Set<String> = []
@@ -40,11 +39,6 @@ struct ExercisePickerView: View {
         return applyFilters(to: exercises)
     }
 
-    var filteredExercisesForMuscle: [Exercise] {
-        guard let muscleGroup = selectedMuscleGroup else { return [] }
-        var exercises = ExerciseLoader.shared.getExercises(forMuscleGroup: muscleGroup)
-        return applyFilters(to: exercises)
-    }
 
     private func applyFilters(to exercises: [Exercise]) -> [Exercise] {
         var filtered = exercises
@@ -81,8 +75,8 @@ struct ExercisePickerView: View {
             // Search Bar
             searchBar
 
-            // View Mode Toggle (only show when not searching and not in muscle detail)
-            if !isSearching && selectedMuscleGroup == nil {
+            // View Mode Toggle (only show when not searching)
+            if !isSearching {
                 viewModeToggle
                     .transition(.opacity)
             }
@@ -100,11 +94,6 @@ struct ExercisePickerView: View {
                     exerciseList(filteredExercises)
                         .transition(.opacity)
                         .id("search")
-                } else if selectedMuscleGroup != nil {
-                    // Show exercises for selected muscle group
-                    exerciseList(filteredExercisesForMuscle)
-                        .transition(.opacity)
-                        .id("muscle-detail")
                 } else {
                     // Show muscle groups or all exercises based on toggle
                     if viewMode == .muscleGroups {
@@ -120,22 +109,14 @@ struct ExercisePickerView: View {
             }
         }
         .animation(.default, value: viewMode)
-        .animation(.default, value: selectedMuscleGroup)
         .animation(.default, value: isSearching)
         .animation(.default, value: showFilters)
-        .navigationTitle(selectedMuscleGroup ?? "Add Exercise")
+        .navigationTitle("Add Exercise")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(selectedMuscleGroup != nil && !isSearching)
-        .toolbar {
-            if selectedMuscleGroup != nil && !isSearching {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Back") {
-                        withAnimation {
-                            selectedMuscleGroup = nil
-                            showFilters = false
-                        }
-                    }
-                    .foregroundColor(.utOrange)
+        .onChange(of: viewMode) { _ in
+            if showFilters {
+                withAnimation {
+                    showFilters = false
                 }
             }
         }
@@ -207,9 +188,22 @@ struct ExercisePickerView: View {
                         showFilters.toggle()
                     }
                 }) {
-                    Image(systemName: showFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                        .font(.title2)
-                        .foregroundColor(hasActiveFilters ? .utOrange : .secondary)
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: showFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                            .font(.title2)
+                            .foregroundColor(hasActiveFilters ? .utOrange : .secondary)
+
+                        if hasActiveFilters {
+                            Text("\(activeFilterCount)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(4)
+                                .background(Color.red)
+                                .clipShape(Circle())
+                                .offset(x: 8, y: -8)
+                        }
+                    }
                 }
             }
             .padding(.horizontal)
@@ -304,6 +298,10 @@ struct ExercisePickerView: View {
         !selectedEquipment.isEmpty || !selectedLevel.isEmpty || !selectedCategory.isEmpty
     }
 
+    private var activeFilterCount: Int {
+        selectedEquipment.count + selectedLevel.count + selectedCategory.count
+    }
+
     private func clearFilters() {
         selectedEquipment.removeAll()
         selectedLevel.removeAll()
@@ -314,10 +312,7 @@ struct ExercisePickerView: View {
     private var muscleGroupList: some View {
         List {
             ForEach(muscleGroups, id: \.self) { muscleGroup in
-                Button(action: {
-                    selectedMuscleGroup = muscleGroup
-                    showFilters = false
-                }) {
+                NavigationLink(destination: muscleExerciseListView(for: muscleGroup)) {
                     HStack(spacing: 12) {
                         ZStack {
                             Circle()
@@ -331,65 +326,155 @@ struct ExercisePickerView: View {
                         Text(muscleGroup)
                             .foregroundColor(.primary)
                             .font(.headline)
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
                     }
                     .padding(.vertical, 8)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
             }
         }
         .listStyle(.plain)
     }
 
+    private func muscleExerciseListView(for muscleGroup: String) -> some View {
+        MuscleExerciseListView(muscleGroup: muscleGroup, onSelect: onSelect)
+    }
+
     // MARK: - Exercise List
     private func exerciseList(_ exercises: [Exercise]) -> some View {
-        List {
-            ForEach(exercises) { exercise in
-                Button(action: {
-                    onSelect(exercise.name)
-                    dismiss()
-                }) {
-                    HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.utOrange.opacity(0.15))
-                                .frame(width: 30, height: 30)
-                            Image(systemName: "figure.strengthtraining.traditional")
-                                .font(.caption)
-                                .foregroundColor(.utOrange)
+        Group {
+            if exercises.isEmpty {
+                emptyStateView
+            } else if exercises.count < 3 && hasActiveFilters {
+                VStack(spacing: 0) {
+                    limitedResultsView(count: exercises.count)
+                    List {
+                        ForEach(exercises) { exercise in
+                            exerciseRow(exercise)
                         }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(exercise.name)
-                                .foregroundColor(.primary)
-                                .font(.body)
-
-                            if let equipment = exercise.equipment {
-                                Text(equipment.capitalized)
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
-                            }
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.utOrange)
-                            .font(.title3)
                     }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
+                    .listStyle(.plain)
                 }
-                .buttonStyle(.plain)
+            } else {
+                List {
+                    ForEach(exercises) { exercise in
+                        exerciseRow(exercise)
+                    }
+                }
+                .listStyle(.plain)
             }
         }
-        .listStyle(.plain)
+    }
+
+    private func exerciseRow(_ exercise: Exercise) -> some View {
+        Button(action: {
+            onSelect(exercise.name)
+            dismiss()
+        }) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.utOrange.opacity(0.15))
+                        .frame(width: 30, height: 30)
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.caption)
+                        .foregroundColor(.utOrange)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(exercise.name)
+                        .foregroundColor(.primary)
+                        .font(.body)
+
+                    if let equipment = exercise.equipment {
+                        Text(equipment.capitalized)
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "plus.circle.fill")
+                    .foregroundColor(.utOrange)
+                    .font(.title3)
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Empty State View
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary.opacity(0.5))
+
+            VStack(spacing: 8) {
+                Text("No Exercises Found")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("Try adjusting your filters to see more results")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
+            if hasActiveFilters {
+                Button(action: clearFilters) {
+                    Text("Clear All Filters")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.utOrange)
+                        .cornerRadius(10)
+                }
+                .padding(.top, 8)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func limitedResultsView(count: Int) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(.utOrange)
+                    .font(.title3)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Only \(count) \(count == 1 ? "exercise" : "exercises") found")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Text("Clear some filters to see more options")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button(action: clearFilters) {
+                    Text("Clear")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.utOrange)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.utOrange.opacity(0.15))
+                        .cornerRadius(6)
+                }
+            }
+            .padding()
+            .background(Color.utOrange.opacity(0.08))
+        }
     }
 
     // MARK: - Helper Functions
@@ -412,6 +497,437 @@ struct ExercisePickerView: View {
         case "traps": return "arrow.up.circle.fill"
         case "neck": return "circle.fill"
         default: return "figure.strengthtraining.traditional"
+        }
+    }
+}
+
+// MARK: - Muscle Exercise List View
+struct MuscleExerciseListView: View {
+    let muscleGroup: String
+    let onSelect: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText: String = ""
+    @State private var showFilters: Bool = false
+    @State private var selectedEquipment: Set<String> = []
+    @State private var selectedLevel: Set<String> = []
+    @State private var selectedCategory: Set<String> = []
+    @FocusState private var isSearchFocused: Bool
+
+    private var allExercises: [Exercise] {
+        ExerciseLoader.shared.getExercises(forMuscleGroup: muscleGroup)
+    }
+
+    private var filteredExercises: [Exercise] {
+        var exercises = allExercises
+
+        // Apply search
+        if !searchText.isEmpty {
+            exercises = exercises.filter { exercise in
+                exercise.name.localizedCaseInsensitiveContains(searchText) ||
+                exercise.equipment?.localizedCaseInsensitiveContains(searchText) == true
+            }
+        }
+
+        // Apply filters
+        return applyFilters(to: exercises)
+    }
+
+    private func applyFilters(to exercises: [Exercise]) -> [Exercise] {
+        var filtered = exercises
+
+        if !selectedEquipment.isEmpty {
+            filtered = filtered.filter { exercise in
+                guard let equipment = exercise.equipment else { return false }
+                return selectedEquipment.contains(where: { $0.lowercased() == equipment.lowercased() })
+            }
+        }
+
+        if !selectedLevel.isEmpty {
+            filtered = filtered.filter { exercise in
+                guard let level = exercise.level else { return false }
+                return selectedLevel.contains(where: { $0.lowercased() == level.lowercased() })
+            }
+        }
+
+        if !selectedCategory.isEmpty {
+            filtered = filtered.filter { exercise in
+                guard let category = exercise.category else { return false }
+                return selectedCategory.contains(where: { $0.lowercased() == category.lowercased() })
+            }
+        }
+
+        return filtered
+    }
+
+    private var hasActiveFilters: Bool {
+        !selectedEquipment.isEmpty || !selectedLevel.isEmpty || !selectedCategory.isEmpty
+    }
+
+    private var activeFilterCount: Int {
+        selectedEquipment.count + selectedLevel.count + selectedCategory.count
+    }
+
+    private func clearFilters() {
+        selectedEquipment.removeAll()
+        selectedLevel.removeAll()
+        selectedCategory.removeAll()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Search Bar
+            ExerciseSearchBar(
+                searchText: $searchText,
+                showFilters: $showFilters,
+                hasActiveFilters: hasActiveFilters,
+                activeFilterCount: activeFilterCount,
+                isSearchFocused: $isSearchFocused,
+                placeholder: "Search \(muscleGroup) exercises"
+            )
+
+            // Filter Section
+            if showFilters {
+                ExerciseFilterSection(
+                    selectedEquipment: $selectedEquipment,
+                    selectedLevel: $selectedLevel,
+                    selectedCategory: $selectedCategory,
+                    hasActiveFilters: hasActiveFilters,
+                    clearFilters: clearFilters
+                )
+                .transition(.opacity)
+            }
+
+            // Exercise List
+            ExerciseListContent(
+                exercises: filteredExercises,
+                hasActiveFilters: hasActiveFilters,
+                clearFilters: clearFilters,
+                onSelect: { exerciseName in
+                    onSelect(exerciseName)
+                    dismiss()
+                }
+            )
+        }
+        .animation(.default, value: showFilters)
+        .navigationTitle(muscleGroup)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Reusable Components
+
+struct ExerciseSearchBar: View {
+    @Binding var searchText: String
+    @Binding var showFilters: Bool
+    var hasActiveFilters: Bool
+    var activeFilterCount: Int
+    @FocusState.Binding var isSearchFocused: Bool
+    var placeholder: String = "Search exercises"
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+
+                    TextField(placeholder, text: $searchText)
+                        .focused($isSearchFocused)
+                        .textFieldStyle(.plain)
+
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(10)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+
+                Button(action: {
+                    withAnimation {
+                        showFilters.toggle()
+                    }
+                }) {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: showFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                            .font(.title2)
+                            .foregroundColor(hasActiveFilters ? .utOrange : .secondary)
+
+                        if hasActiveFilters {
+                            Text("\(activeFilterCount)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(4)
+                                .background(Color.red)
+                                .clipShape(Circle())
+                                .offset(x: 8, y: -8)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+        .background(Color(.systemBackground))
+    }
+}
+
+struct ExerciseFilterSection: View {
+    @Binding var selectedEquipment: Set<String>
+    @Binding var selectedLevel: Set<String>
+    @Binding var selectedCategory: Set<String>
+    var hasActiveFilters: Bool
+    var clearFilters: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Divider()
+
+            FilterRow(
+                title: "Equipment",
+                options: ["Barbell", "Dumbbell", "Machine", "Cable", "Body Only", "Kettlebells", "Bands"],
+                selection: $selectedEquipment
+            )
+
+            FilterRow(
+                title: "Level",
+                options: ["Beginner", "Intermediate", "Expert"],
+                selection: $selectedLevel
+            )
+
+            FilterRow(
+                title: "Category",
+                options: ["Strength", "Stretching", "Cardio"],
+                selection: $selectedCategory
+            )
+
+            if hasActiveFilters {
+                Button(action: clearFilters) {
+                    Text("Clear All Filters")
+                        .font(.subheadline)
+                        .foregroundColor(.utOrange)
+                }
+                .padding(.top, 4)
+            }
+
+            Divider()
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+        .background(Color(.systemBackground))
+    }
+}
+
+struct FilterRow: View {
+    let title: String
+    let options: [String]
+    @Binding var selection: Set<String>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(options, id: \.self) { option in
+                        Button(action: {
+                            if selection.contains(option) {
+                                selection.remove(option)
+                            } else {
+                                selection.insert(option)
+                            }
+                        }) {
+                            Text(option)
+                                .font(.subheadline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    selection.contains(option)
+                                    ? Color.utOrange
+                                    : Color(.systemGray6)
+                                )
+                                .foregroundColor(
+                                    selection.contains(option)
+                                    ? .white
+                                    : .primary
+                                )
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct ExerciseListContent: View {
+    let exercises: [Exercise]
+    let hasActiveFilters: Bool
+    let clearFilters: () -> Void
+    let onSelect: (String) -> Void
+
+    var body: some View {
+        Group {
+            if exercises.isEmpty {
+                EmptyExerciseState(
+                    hasActiveFilters: hasActiveFilters,
+                    clearFilters: clearFilters
+                )
+            } else if exercises.count < 3 && hasActiveFilters {
+                VStack(spacing: 0) {
+                    LimitedResultsBanner(
+                        count: exercises.count,
+                        clearFilters: clearFilters
+                    )
+                    List {
+                        ForEach(exercises) { exercise in
+                            ExerciseRowButton(exercise: exercise, onSelect: onSelect)
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+            } else {
+                List {
+                    ForEach(exercises) { exercise in
+                        ExerciseRowButton(exercise: exercise, onSelect: onSelect)
+                    }
+                }
+                .listStyle(.plain)
+            }
+        }
+    }
+}
+
+struct ExerciseRowButton: View {
+    let exercise: Exercise
+    let onSelect: (String) -> Void
+
+    var body: some View {
+        Button(action: {
+            onSelect(exercise.name)
+        }) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.utOrange.opacity(0.15))
+                        .frame(width: 30, height: 30)
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.caption)
+                        .foregroundColor(.utOrange)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(exercise.name)
+                        .foregroundColor(.primary)
+                        .font(.body)
+
+                    if let equipment = exercise.equipment {
+                        Text(equipment.capitalized)
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "plus.circle.fill")
+                    .foregroundColor(.utOrange)
+                    .font(.title3)
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct EmptyExerciseState: View {
+    let hasActiveFilters: Bool
+    let clearFilters: () -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary.opacity(0.5))
+
+            VStack(spacing: 8) {
+                Text("No Exercises Found")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("Try adjusting your filters to see more results")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
+            if hasActiveFilters {
+                Button(action: clearFilters) {
+                    Text("Clear All Filters")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.utOrange)
+                        .cornerRadius(10)
+                }
+                .padding(.top, 8)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct LimitedResultsBanner: View {
+    let count: Int
+    let clearFilters: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(.utOrange)
+                    .font(.title3)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Only \(count) \(count == 1 ? "exercise" : "exercises") found")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Text("Clear some filters to see more options")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button(action: clearFilters) {
+                    Text("Clear")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.utOrange)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.utOrange.opacity(0.15))
+                        .cornerRadius(6)
+                }
+            }
+            .padding()
+            .background(Color.utOrange.opacity(0.08))
         }
     }
 }
