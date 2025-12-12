@@ -180,8 +180,8 @@ struct LogView: View {
         let newExercise = WorkoutExercise(
             name: name,
             sets: [
-                WorkoutSet(reps: "", weight: "", isWarmup: true),
-                WorkoutSet(reps: "", weight: "")
+                WorkoutSet(reps: "", weight: "", rpe: "", isCompleted: false, isWarmup: true, isDropSet: false),
+                WorkoutSet(reps: "", weight: "", rpe: "", isCompleted: false, isWarmup: false, isDropSet: false)
             ]
         )
         exercises.append(newExercise)

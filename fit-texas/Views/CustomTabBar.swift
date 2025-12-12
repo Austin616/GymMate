@@ -10,13 +10,13 @@ import SwiftUI
 enum TabItem: Int, CaseIterable {
     case home = 0
     case log = 1
-    case settings = 2
+    case profile = 2
 
     var title: String {
         switch self {
         case .home: return "Home"
         case .log: return "Log"
-        case .settings: return "Settings"
+        case .profile: return "Profile"
         }
     }
 
@@ -24,7 +24,7 @@ enum TabItem: Int, CaseIterable {
         switch self {
         case .home: return "house"
         case .log: return "plus.circle.fill"
-        case .settings: return "gearshape"
+        case .profile: return "person"
         }
     }
 
@@ -32,7 +32,7 @@ enum TabItem: Int, CaseIterable {
         switch self {
         case .home: return "house.fill"
         case .log: return "plus.circle.fill"
-        case .settings: return "gearshape.fill"
+        case .profile: return "person.fill"
         }
     }
 }
@@ -49,9 +49,9 @@ struct CustomTabBarView: View {
                 case .home:
                     HomeView()
                 case .log:
-                    LogView()
-                case .settings:
-                    SettingsView()
+                    NewLogView()
+                case .profile:
+                    ProfileView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

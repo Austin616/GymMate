@@ -360,10 +360,10 @@ struct SetDropDelegate: DropDelegate {
             WorkoutExercise(
                 name: "Bench Press",
                 sets: [
-                    WorkoutSet(reps: "8", weight: "60", isCompleted: false, isWarmup: true, isDropSet: false),
-                    WorkoutSet(reps: "6", weight: "80", isCompleted: true, isWarmup: false)
+                    WorkoutSet(reps: "8", weight: "60", rpe: "", isCompleted: false, isWarmup: true, isDropSet: false),
+                    WorkoutSet(reps: "6", weight: "80", rpe: "", isCompleted: true, isWarmup: false, isDropSet: false)
                 ],
-                notes: "Focus on form.",
+                notes: "Focus on form."
             )
         ),
         exerciseIndex: 0,

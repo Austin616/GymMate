@@ -25,19 +25,36 @@ struct Exercise: Codable, Identifiable, Hashable {
 
 // MARK: - Workout Models
 
-struct WorkoutExercise: Identifiable, Hashable {
-    let id = UUID()
+struct WorkoutExercise: Identifiable, Hashable, Codable {
+    let id: UUID
     var name: String
     var sets: [WorkoutSet]
-    var notes: String = ""
+    var notes: String
+
+    init(id: UUID = UUID(), name: String, sets: [WorkoutSet], notes: String = "") {
+        self.id = id
+        self.name = name
+        self.sets = sets
+        self.notes = notes
+    }
 }
 
-struct WorkoutSet: Identifiable, Hashable {
-    let id = UUID()
+struct WorkoutSet: Identifiable, Hashable, Codable {
+    let id: UUID
     var reps: String
     var weight: String
-    var rpe: String = ""
-    var isCompleted: Bool = false
-    var isWarmup: Bool = false
-    var isDropSet: Bool = false
+    var rpe: String
+    var isCompleted: Bool
+    var isWarmup: Bool
+    var isDropSet: Bool
+
+    init(id: UUID = UUID(), reps: String, weight: String, rpe: String = "", isCompleted: Bool = false, isWarmup: Bool = false, isDropSet: Bool = false) {
+        self.id = id
+        self.reps = reps
+        self.weight = weight
+        self.rpe = rpe
+        self.isCompleted = isCompleted
+        self.isWarmup = isWarmup
+        self.isDropSet = isDropSet
+    }
 }
