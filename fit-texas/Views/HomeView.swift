@@ -27,5 +27,7 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView().environmentObject(AuthManager())
+    HomeView()
+        .environmentObject(AuthManager())
+        .environmentObject(WorkoutTimerManager.shared)
 }

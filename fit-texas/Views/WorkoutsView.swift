@@ -1259,4 +1259,5 @@ extension Date {
 
 #Preview {
     WorkoutsView()
+        .environmentObject(WorkoutTimerManager.shared)
 }

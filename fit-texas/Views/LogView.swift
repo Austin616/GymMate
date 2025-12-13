@@ -205,4 +205,5 @@ struct LogView: View {
 
 #Preview {
     LogView()
+        .environmentObject(WorkoutTimerManager.shared)
 }

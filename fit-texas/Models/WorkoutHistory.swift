@@ -158,6 +158,7 @@ class WorkoutHistoryManager: ObservableObject {
         print("🗑️ [DRAFT] Clearing workout draft...")
         currentDraft = nil
         UserDefaults.standard.removeObject(forKey: draftKey)
+        WorkoutTimerManager.shared.stopWorkout()
         print("✅ [DRAFT] Draft cleared")
     }
 

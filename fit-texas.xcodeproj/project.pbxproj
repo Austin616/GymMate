@@ -12,6 +12,9 @@
 		342DE8CA2ECD4EF90041785D /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 342DE8C92ECD4EF90041785D /* FirebaseDatabase */; };
 		342DE8CC2ECD4EF90041785D /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 342DE8CB2ECD4EF90041785D /* FirebaseFirestore */; };
 		342DE8CE2ECD4EF90041785D /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 342DE8CD2ECD4EF90041785D /* FirebaseMessaging */; };
+		34FD2A3B2EEE23D30061C637 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 34FD2A1C2EEE23AA0061C637 /* WidgetKit.framework */; };
+		34FD2A3C2EEE23D30061C637 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 34FD2A1E2EEE23AA0061C637 /* SwiftUI.framework */; };
+		34FD2A4B2EEE23D50061C637 /* WorkoutWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 34FD2A3A2EEE23D30061C637 /* WorkoutWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,12 +32,36 @@
 			remoteGlobalIDString = 342DE8892ECD41EC0041785D;
 			remoteInfo = "fit-texas";
 		};
+		34FD2A492EEE23D50061C637 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 342DE8822ECD41EC0041785D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 34FD2A392EEE23D30061C637;
+			remoteInfo = WorkoutWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		34FD2A312EEE23AB0061C637 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				34FD2A4B2EEE23D50061C637 /* WorkoutWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		342DE88A2ECD41EC0041785D /* fit-texas.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "fit-texas.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		342DE8972ECD41ED0041785D /* fit-texasTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "fit-texasTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		342DE8A12ECD41ED0041785D /* fit-texasUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "fit-texasUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		34FD2A1C2EEE23AA0061C637 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		34FD2A1E2EEE23AA0061C637 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		34FD2A3A2EEE23D30061C637 /* WorkoutWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WorkoutWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -45,6 +72,20 @@
 			);
 			target = 342DE8892ECD41EC0041785D /* fit-texas */;
 		};
+		34FD2A4F2EEE23D50061C637 /* Exceptions for "WorkoutWidget" folder in "WorkoutWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 34FD2A392EEE23D30061C637 /* WorkoutWidgetExtension */;
+		};
+		34FD2A562EEE25470061C637 /* Exceptions for "fit-texas" folder in "WorkoutWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Shared/WorkoutActivityAttributes.swift,
+			);
+			target = 34FD2A392EEE23D30061C637 /* WorkoutWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +93,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				341B88A52EEB91DD0064F0DE /* Exceptions for "fit-texas" folder in "fit-texas" target */,
+				34FD2A562EEE25470061C637 /* Exceptions for "fit-texas" folder in "WorkoutWidgetExtension" target */,
 			);
 			explicitFolders = (
 				exercises,
@@ -67,6 +109,14 @@
 		342DE8A42ECD41ED0041785D /* fit-texasUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "fit-texasUITests";
+			sourceTree = "<group>";
+		};
+		34FD2A3D2EEE23D30061C637 /* WorkoutWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				34FD2A4F2EEE23D50061C637 /* Exceptions for "WorkoutWidget" folder in "WorkoutWidgetExtension" target */,
+			);
+			path = WorkoutWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -98,6 +148,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		34FD2A372EEE23D30061C637 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				34FD2A3C2EEE23D30061C637 /* SwiftUI.framework in Frameworks */,
+				34FD2A3B2EEE23D30061C637 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -107,6 +166,8 @@
 				342DE88C2ECD41EC0041785D /* fit-texas */,
 				342DE89A2ECD41ED0041785D /* fit-texasTests */,
 				342DE8A42ECD41ED0041785D /* fit-texasUITests */,
+				34FD2A3D2EEE23D30061C637 /* WorkoutWidget */,
+				34FD2A1B2EEE23AA0061C637 /* Frameworks */,
 				342DE88B2ECD41EC0041785D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -117,8 +178,18 @@
 				342DE88A2ECD41EC0041785D /* fit-texas.app */,
 				342DE8972ECD41ED0041785D /* fit-texasTests.xctest */,
 				342DE8A12ECD41ED0041785D /* fit-texasUITests.xctest */,
+				34FD2A3A2EEE23D30061C637 /* WorkoutWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		34FD2A1B2EEE23AA0061C637 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				34FD2A1C2EEE23AA0061C637 /* WidgetKit.framework */,
+				34FD2A1E2EEE23AA0061C637 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -131,10 +202,12 @@
 				342DE8862ECD41EC0041785D /* Sources */,
 				342DE8872ECD41EC0041785D /* Frameworks */,
 				342DE8882ECD41EC0041785D /* Resources */,
+				34FD2A312EEE23AB0061C637 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				34FD2A4A2EEE23D50061C637 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				342DE88C2ECD41EC0041785D /* fit-texas */,
@@ -197,6 +270,28 @@
 			productReference = 342DE8A12ECD41ED0041785D /* fit-texasUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		34FD2A392EEE23D30061C637 /* WorkoutWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 34FD2A4C2EEE23D50061C637 /* Build configuration list for PBXNativeTarget "WorkoutWidgetExtension" */;
+			buildPhases = (
+				34FD2A362EEE23D30061C637 /* Sources */,
+				34FD2A372EEE23D30061C637 /* Frameworks */,
+				34FD2A382EEE23D30061C637 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				34FD2A3D2EEE23D30061C637 /* WorkoutWidget */,
+			);
+			name = WorkoutWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = WorkoutWidgetExtension;
+			productReference = 34FD2A3A2EEE23D30061C637 /* WorkoutWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -217,6 +312,9 @@
 					342DE8A02ECD41ED0041785D = {
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = 342DE8892ECD41EC0041785D;
+					};
+					34FD2A392EEE23D30061C637 = {
+						CreatedOnToolsVersion = 26.0.1;
 					};
 				};
 			};
@@ -240,6 +338,7 @@
 				342DE8892ECD41EC0041785D /* fit-texas */,
 				342DE8962ECD41ED0041785D /* fit-texasTests */,
 				342DE8A02ECD41ED0041785D /* fit-texasUITests */,
+				34FD2A392EEE23D30061C637 /* WorkoutWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -260,6 +359,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		342DE89F2ECD41ED0041785D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		34FD2A382EEE23D30061C637 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -290,6 +396,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		34FD2A362EEE23D30061C637 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -302,6 +415,11 @@
 			isa = PBXTargetDependency;
 			target = 342DE8892ECD41EC0041785D /* fit-texas */;
 			targetProxy = 342DE8A22ECD41ED0041785D /* PBXContainerItemProxy */;
+		};
+		34FD2A4A2EEE23D50061C637 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 34FD2A392EEE23D30061C637 /* WorkoutWidgetExtension */;
+			targetProxy = 34FD2A492EEE23D50061C637 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -432,11 +550,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "fit-texas/fit-texas.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Q2CB6U8V47;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -464,11 +584,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "fit-texas/fit-texas.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Q2CB6U8V47;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -575,6 +697,66 @@
 			};
 			name = Release;
 		};
+		34FD2A4D2EEE23D50061C637 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q2CB6U8V47;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WorkoutWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WorkoutWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "personal.fit-texas.WorkoutWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		34FD2A4E2EEE23D50061C637 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q2CB6U8V47;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WorkoutWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WorkoutWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "personal.fit-texas.WorkoutWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -610,6 +792,15 @@
 			buildConfigurations = (
 				342DE8B22ECD41ED0041785D /* Debug */,
 				342DE8B32ECD41ED0041785D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		34FD2A4C2EEE23D50061C637 /* Build configuration list for PBXNativeTarget "WorkoutWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				34FD2A4D2EEE23D50061C637 /* Debug */,
+				34FD2A4E2EEE23D50061C637 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

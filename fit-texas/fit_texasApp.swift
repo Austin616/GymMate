@@ -10,13 +10,30 @@ import FirebaseCore
 
 @main
 struct fit_texasApp: App {
+    @StateObject private var timerManager = WorkoutTimerManager.shared
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
         FirebaseApp.configure()
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(timerManager)
+                .onAppear {
+                    timerManager.initialize()
+                }
+                .onChange(of: scenePhase) { oldPhase, newPhase in
+                    switch newPhase {
+                    case .background:
+                        timerManager.handleAppDidEnterBackground()
+                    case .active:
+                        timerManager.handleAppWillEnterForeground()
+                    default:
+                        break
+                    }
+                }
         }
     }
 }

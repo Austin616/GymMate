@@ -628,4 +628,5 @@ struct StatItemCompact: View {
 #Preview {
     ProfileView()
         .environmentObject(AuthManager())
+        .environmentObject(WorkoutTimerManager.shared)
 }

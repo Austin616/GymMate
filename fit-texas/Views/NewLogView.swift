@@ -240,6 +240,7 @@ struct WorkoutHistoryRow: View {
 
 struct ActiveWorkoutView: View {
     @ObservedObject var historyManager: WorkoutHistoryManager
+    @EnvironmentObject var timerManager: WorkoutTimerManager
     let templateWorkout: SavedWorkout?
     var onFinish: (() -> Void)? = nil
     var onCancel: (() -> Void)? = nil
@@ -252,9 +253,6 @@ struct ActiveWorkoutView: View {
     @State private var isSaving: Bool = false
     @State private var showCancelConfirmation: Bool = false
     @State private var showExercisePicker: Bool = false
-    @State private var currentTime: Date = Date()
-
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var totalVolume: Double {
         exercises.reduce(0.0) { total, exercise in
@@ -271,10 +269,7 @@ struct ActiveWorkoutView: View {
     }
 
     var elapsedTime: String {
-        let elapsed = currentTime.timeIntervalSince(startTime)
-        let minutes = Int(elapsed) / 60
-        let seconds = Int(elapsed) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+        timerManager.formattedElapsedTime()
     }
 
     var body: some View {
@@ -423,15 +418,16 @@ struct ActiveWorkoutView: View {
             }
             .onAppear {
                 loadTemplate()
+                // Start workout timer if not already running
+                if timerManager.workoutStartTime == nil {
+                    timerManager.startWorkout(startTime: startTime)
+                }
             }
             .onChange(of: exercises) { _ in
                 // Auto-save draft when exercises change
                 if !exercises.isEmpty {
                     saveDraft()
                 }
-            }
-            .onReceive(timer) { _ in
-                currentTime = Date()
             }
     }
 
@@ -510,8 +506,15 @@ struct ActiveWorkoutView: View {
             exercises: exercises
         )
 
+        // Stop timer and clear Live Activity immediately
+        timerManager.stopWorkout()
+
+        // Clear draft to hide preview instantly
+        historyManager.clearDraft()
+
+        // Save workout to history
         historyManager.saveWorkout(workout)
-        historyManager.clearDraft() // Clear draft after saving workout
+
         isSaving = false
 
         if let onFinish = onFinish {
@@ -524,4 +527,5 @@ struct ActiveWorkoutView: View {
 
 #Preview {
     NewLogView()
+        .environmentObject(WorkoutTimerManager.shared)
 }

@@ -40,6 +40,7 @@ enum TabItem: Int, CaseIterable {
 struct CustomTabBarView: View {
     @Binding var selectedTab: TabItem
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var timerManager: WorkoutTimerManager
     @StateObject private var historyManager = WorkoutHistoryManager()
 
     var body: some View {
@@ -56,13 +57,35 @@ struct CustomTabBarView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .environmentObject(historyManager)
 
-            // Custom Tab Bar
-            CustomTabBar(
-                selectedTab: $selectedTab,
-                hasActiveWorkout: historyManager.hasDraft
-            )
+            VStack(spacing: 0) {
+                Spacer()
+
+                // Workout Preview Card
+                if historyManager.hasDraft {
+                    ActiveWorkoutPreview(
+                        historyManager: historyManager,
+                        timerManager: timerManager,
+                        onTap: {
+                            withAnimation {
+                                selectedTab = .log
+                            }
+                        }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                    .transition(.identity) // No animation - disappears instantly
+                }
+
+                // Custom Tab Bar
+                CustomTabBar(
+                    selectedTab: $selectedTab,
+                    hasActiveWorkout: historyManager.hasDraft
+                )
                 .edgesIgnoringSafeArea(.bottom)
+            }
+            .animation(.none, value: historyManager.hasDraft) // Disable animation for preview show/hide
         }
         .ignoresSafeArea(.keyboard)
     }
@@ -139,4 +162,5 @@ struct TabBarButton: View {
 #Preview {
     CustomTabBarView(selectedTab: .constant(.home))
         .environmentObject(AuthManager())
+        .environmentObject(WorkoutTimerManager.shared)
 }
