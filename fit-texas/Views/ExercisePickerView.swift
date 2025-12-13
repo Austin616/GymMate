@@ -352,7 +352,10 @@ struct ExercisePickerView: View {
     }
 
     private func muscleExerciseListView(for muscleGroup: String) -> some View {
-        MuscleExerciseListView(muscleGroup: muscleGroup, onSelect: onSelect)
+        MuscleExerciseListView(muscleGroup: muscleGroup, onSelect: { exerciseName in
+            onSelect(exerciseName)
+            dismiss()
+        })
     }
 
     // MARK: - Exercise List

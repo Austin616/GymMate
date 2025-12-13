@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+internal import Combine
 
 enum LogViewMode {
     case history
@@ -39,15 +40,7 @@ struct NewLogView: View {
             .sheet(isPresented: $showNewWorkout) {
                 ActiveWorkoutView(
                     historyManager: historyManager,
-                    templateWorkout: nil,
-                    onSave: {
-                        showNewWorkout = false
-                        viewMode = .history
-                    },
-                    onCancel: {
-                        showNewWorkout = false
-                        viewMode = .history
-                    }
+                    templateWorkout: nil
                 )
             }
         }
@@ -248,14 +241,20 @@ struct WorkoutHistoryRow: View {
 struct ActiveWorkoutView: View {
     @ObservedObject var historyManager: WorkoutHistoryManager
     let templateWorkout: SavedWorkout?
-    let onSave: () -> Void
-    let onCancel: () -> Void
+    var onFinish: (() -> Void)? = nil
+    var onCancel: (() -> Void)? = nil
+    @Environment(\.presentationMode) var presentationMode
 
     @State private var workoutName: String = ""
     @State private var startTime: Date = Date()
     @State private var exercises: [WorkoutExercise] = []
     @State private var showNamePrompt: Bool = false
     @State private var isSaving: Bool = false
+    @State private var showCancelConfirmation: Bool = false
+    @State private var showExercisePicker: Bool = false
+    @State private var currentTime: Date = Date()
+
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var totalVolume: Double {
         exercises.reduce(0.0) { total, exercise in
@@ -271,32 +270,53 @@ struct ActiveWorkoutView: View {
         exercises.reduce(0) { $0 + $1.sets.count }
     }
 
+    var elapsedTime: String {
+        let elapsed = currentTime.timeIntervalSince(startTime)
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                CustomTabHeader(
-                    title: "Current Workout",
-                    leadingButton: AnyView(
-                        Button("Cancel") {
+        VStack(spacing: 0) {
+            CustomTabHeader(
+                title: "Current Workout • \(elapsedTime)",
+                leadingButton: AnyView(
+                    Button(action: {
+                        // Save as draft when going back
+                        if !exercises.isEmpty {
+                            saveDraft()
+                        }
+                        if let onCancel = onCancel {
                             onCancel()
+                        } else {
+                            presentationMode.wrappedValue.dismiss()
                         }
-                        .foregroundColor(.secondary)
-                    ),
-                    trailingButton: AnyView(
-                        Button(action: saveWorkout) {
-                            if isSaving {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .utOrange))
-                            } else {
-                                Text("Finish")
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(exercises.isEmpty ? .secondary : .utOrange)
-                            }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                            Text("Back")
                         }
-                        .disabled(exercises.isEmpty || isSaving)
-                    ),
-                    isSubScreen: true
-                )
+                        .foregroundColor(.utOrange)
+                    }
+                ),
+                trailingButton: AnyView(
+                    Button(action: saveWorkout) {
+                        if isSaving {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .utOrange))
+                        } else {
+                            Text("Finish")
+                                .fontWeight(.semibold)
+                                .foregroundColor(exercises.isEmpty ? .secondary : .utOrange)
+                        }
+                    }
+                    .disabled(exercises.isEmpty || isSaving)
+                ),
+                isSubScreen: true
+            )
 
                 ZStack {
                     LinearGradient(
@@ -334,11 +354,9 @@ struct ActiveWorkoutView: View {
                                 )
                             }
 
-                            NavigationLink(destination: ExercisePickerView(
-                                onSelect: { exerciseName in
-                                    addExercise(name: exerciseName)
-                                }
-                            )) {
+                            Button(action: {
+                                showExercisePicker = true
+                            }) {
                                 HStack(spacing: 10) {
                                     Image(systemName: "plus.circle.fill")
                                         .font(.title2)
@@ -361,6 +379,19 @@ struct ActiveWorkoutView: View {
                             .buttonStyle(.plain)
                             .padding(.horizontal, 8)
                             .padding(.bottom, 12)
+
+                            NavigationLink(
+                                destination: ExercisePickerView(
+                                    onSelect: { exerciseName in
+                                        addExercise(name: exerciseName)
+                                        showExercisePicker = false
+                                    }
+                                ),
+                                isActive: $showExercisePicker
+                            ) {
+                                EmptyView()
+                            }
+                            .hidden()
                         }
                         .padding(.top, 10)
                         .padding(.horizontal, 0)
@@ -382,10 +413,26 @@ struct ActiveWorkoutView: View {
             } message: {
                 Text("Give your workout a memorable name")
             }
+            .alert("Discard Workout?", isPresented: $showCancelConfirmation) {
+                Button("Keep Editing", role: .cancel) { }
+                Button("Discard", role: .destructive) {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            } message: {
+                Text("Your workout will not be saved.")
+            }
             .onAppear {
                 loadTemplate()
             }
-        }
+            .onChange(of: exercises) { _ in
+                // Auto-save draft when exercises change
+                if !exercises.isEmpty {
+                    saveDraft()
+                }
+            }
+            .onReceive(timer) { _ in
+                currentTime = Date()
+            }
     }
 
     func bindingForExercise(at index: Int) -> Binding<WorkoutExercise> {
@@ -429,7 +476,23 @@ struct ActiveWorkoutView: View {
                     notes: exercise.notes
                 )
             }
+        } else if let draft = historyManager.currentDraft {
+            // Load from draft if no template
+            workoutName = draft.workoutName
+            startTime = draft.startTime
+            exercises = draft.exercises
+            print("✅ [DRAFT] Loaded draft with \(draft.exercises.count) exercises")
         }
+    }
+
+    func saveDraft() {
+        let draft = WorkoutDraft(
+            workoutName: workoutName,
+            startTime: startTime,
+            exercises: exercises,
+            lastModified: Date()
+        )
+        historyManager.saveDraft(draft)
     }
 
     func saveWorkout() {
@@ -448,8 +511,14 @@ struct ActiveWorkoutView: View {
         )
 
         historyManager.saveWorkout(workout)
+        historyManager.clearDraft() // Clear draft after saving workout
         isSaving = false
-        onSave()
+
+        if let onFinish = onFinish {
+            onFinish()
+        } else {
+            presentationMode.wrappedValue.dismiss()
+        }
     }
 }
 

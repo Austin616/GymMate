@@ -8,6 +8,20 @@
 import Foundation
 internal import Combine
 
+struct WorkoutDraft: Codable, Equatable {
+    var workoutName: String
+    var startTime: Date
+    var exercises: [WorkoutExercise]
+    var lastModified: Date
+
+    init(workoutName: String = "", startTime: Date = Date(), exercises: [WorkoutExercise] = [], lastModified: Date = Date()) {
+        self.workoutName = workoutName
+        self.startTime = startTime
+        self.exercises = exercises
+        self.lastModified = lastModified
+    }
+}
+
 struct SavedWorkout: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
@@ -52,13 +66,16 @@ class WorkoutHistoryManager: ObservableObject {
     @Published var savedWorkouts: [SavedWorkout] = []
     @Published var isOnline: Bool = true
     @Published var isSyncing: Bool = false
+    @Published var currentDraft: WorkoutDraft?
 
     private let repository = WorkoutRepository()
     private var cancellables = Set<AnyCancellable>()
+    private let draftKey = "currentWorkoutDraft"
 
     init() {
         print("🔵 [HISTORY] Initializing WorkoutHistoryManager...")
         observeRepository()
+        loadDraft()
         print("✅ [HISTORY] WorkoutHistoryManager initialized")
     }
 
@@ -109,6 +126,43 @@ class WorkoutHistoryManager: ObservableObject {
 
     func syncAllWorkouts() {
         repository.syncAllWorkouts()
+    }
+
+    // MARK: - Draft Management
+
+    func saveDraft(_ draft: WorkoutDraft) {
+        print("💾 [DRAFT] Saving workout draft...")
+        currentDraft = draft
+
+        if let encoded = try? JSONEncoder().encode(draft) {
+            UserDefaults.standard.set(encoded, forKey: draftKey)
+            print("✅ [DRAFT] Draft saved successfully")
+        } else {
+            print("❌ [DRAFT] Failed to encode draft")
+        }
+    }
+
+    func loadDraft() {
+        print("📂 [DRAFT] Loading workout draft...")
+        guard let data = UserDefaults.standard.data(forKey: draftKey),
+              let draft = try? JSONDecoder().decode(WorkoutDraft.self, from: data) else {
+            print("ℹ️ [DRAFT] No draft found")
+            return
+        }
+
+        currentDraft = draft
+        print("✅ [DRAFT] Draft loaded: \(draft.exercises.count) exercises")
+    }
+
+    func clearDraft() {
+        print("🗑️ [DRAFT] Clearing workout draft...")
+        currentDraft = nil
+        UserDefaults.standard.removeObject(forKey: draftKey)
+        print("✅ [DRAFT] Draft cleared")
+    }
+
+    var hasDraft: Bool {
+        currentDraft != nil
     }
 }
 

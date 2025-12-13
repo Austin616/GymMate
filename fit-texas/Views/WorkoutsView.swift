@@ -10,10 +10,8 @@ import SwiftUI
 struct WorkoutsView: View {
     @StateObject private var historyManager = WorkoutHistoryManager()
     @State private var selectedDate = Date()
-    @State private var currentWeekStart = Date().startOfWeek
-    @State private var showNewWorkout = false
-    @State private var showPastWorkouts = false
-    @State private var selectedWorkoutTemplate: SavedWorkout?
+    @State private var isLogging: Bool = false
+    @State private var selectedTemplate: SavedWorkout?
 
     private var workoutsForSelectedDay: [SavedWorkout] {
         historyManager.savedWorkouts.filter { workout in
@@ -21,71 +19,170 @@ struct WorkoutsView: View {
         }
     }
 
+    private func hasWorkout(on date: Date) -> Bool {
+        historyManager.savedWorkouts.contains { workout in
+            Calendar.current.isDate(workout.date, inSameDayAs: date)
+        }
+    }
+
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                CustomTabHeader(title: "Workouts")
-
-                // Week Calendar
-                WeekCalendarView(
-                    selectedDate: $selectedDate,
-                    currentWeekStart: $currentWeekStart,
-                    workouts: historyManager.savedWorkouts
-                )
-
-                Divider()
-                    .padding(.top, 12)
-
-                // Selected Day Content
-                if workoutsForSelectedDay.isEmpty {
-                    EmptyDayView(
-                        selectedDate: selectedDate,
-                        onStartNew: {
-                            selectedWorkoutTemplate = nil
-                            showNewWorkout = true
-                        },
-                        onPickFromPast: {
-                            showPastWorkouts = true
-                        }
-                    )
-                } else {
-                    DayWorkoutsView(
-                        workouts: workoutsForSelectedDay,
-                        onStartNew: {
-                            selectedWorkoutTemplate = nil
-                            showNewWorkout = true
-                        }
-                    )
-                }
-            }
-            .navigationBarHidden(true)
-            .sheet(isPresented: $showNewWorkout) {
+            if isLogging {
+                // Logging Mode - Show ActiveWorkoutView inline
                 ActiveWorkoutView(
                     historyManager: historyManager,
-                    templateWorkout: selectedWorkoutTemplate,
-                    onSave: {
-                        showNewWorkout = false
-                        selectedWorkoutTemplate = nil
+                    templateWorkout: selectedTemplate,
+                    onFinish: {
+                        isLogging = false
+                        selectedTemplate = nil
                     },
                     onCancel: {
-                        showNewWorkout = false
-                        selectedWorkoutTemplate = nil
+                        isLogging = false
+                        selectedTemplate = nil
                     }
                 )
-            }
-            .sheet(isPresented: $showPastWorkouts) {
-                PastWorkoutsPickerView(
-                    historyManager: historyManager,
-                    onSelect: { workout in
-                        selectedWorkoutTemplate = workout
-                        showPastWorkouts = false
-                        showNewWorkout = true
-                    },
-                    onDismiss: {
-                        showPastWorkouts = false
+            } else {
+                // View Mode - Show day navigator and workouts
+                VStack(spacing: 0) {
+                    CustomTabHeader(title: "Workouts")
+
+                    // Day Navigator
+                    DayNavigatorView(
+                        selectedDate: $selectedDate,
+                        hasWorkout: hasWorkout(on: selectedDate)
+                    )
+
+                    Divider()
+                        .padding(.top, 12)
+
+                    // Selected Day Content
+                    if workoutsForSelectedDay.isEmpty {
+                        EmptyDayView(
+                            selectedDate: selectedDate,
+                            historyManager: historyManager,
+                            onStartLogging: {
+                                isLogging = true
+                                selectedTemplate = nil
+                            },
+                            onSelectTemplate: { template in
+                                selectedTemplate = template
+                                isLogging = true
+                            }
+                        )
+                    } else {
+                        DayWorkoutsView(
+                            workouts: workoutsForSelectedDay,
+                            historyManager: historyManager,
+                            onStartLogging: {
+                                isLogging = true
+                                selectedTemplate = nil
+                            }
+                        )
                     }
-                )
+                }
+                .navigationBarHidden(true)
             }
+        }
+        .onAppear {
+            // Auto-enter logging mode if draft exists
+            if historyManager.hasDraft {
+                isLogging = true
+            }
+        }
+    }
+}
+
+// MARK: - Day Navigator View
+
+struct DayNavigatorView: View {
+    @Binding var selectedDate: Date
+    let hasWorkout: Bool
+
+    private var dateString: String {
+        let formatter = DateFormatter()
+        if Calendar.current.isDateInToday(selectedDate) {
+            return "Today"
+        } else if Calendar.current.isDateInYesterday(selectedDate) {
+            return "Yesterday"
+        } else if Calendar.current.isDateInTomorrow(selectedDate) {
+            return "Tomorrow"
+        } else {
+            formatter.dateFormat = "EEEE, MMMM d"
+            return formatter.string(from: selectedDate)
+        }
+    }
+
+    private var yearString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy"
+        let currentYear = formatter.string(from: Date())
+        let selectedYear = formatter.string(from: selectedDate)
+        return currentYear != selectedYear ? ", \(selectedYear)" : ""
+    }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // Previous Day Button
+            Button(action: previousDay) {
+                Image(systemName: "chevron.left")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.utOrange)
+                    .frame(width: 44, height: 44)
+            }
+
+            Spacer()
+
+            // Date Display
+            VStack(spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(dateString)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    if !yearString.isEmpty {
+                        Text(yearString)
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                // Workout Indicator
+                Circle()
+                    .fill(hasWorkout ? Color.utOrange : Color.clear)
+                    .frame(width: 6, height: 6)
+            }
+
+            Spacer()
+
+            // Next Day Button
+            Button(action: nextDay) {
+                Image(systemName: "chevron.right")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.utOrange)
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(Color(.systemBackground))
+    }
+
+    private func previousDay() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+        }
+    }
+
+    private func nextDay() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
         }
     }
 }
@@ -252,8 +349,9 @@ struct WeekDayCell: View {
 
 struct EmptyDayView: View {
     let selectedDate: Date
-    let onStartNew: () -> Void
-    let onPickFromPast: () -> Void
+    @ObservedObject var historyManager: WorkoutHistoryManager
+    let onStartLogging: () -> Void
+    let onSelectTemplate: (SavedWorkout) -> Void
 
     private var dateString: String {
         let formatter = DateFormatter()
@@ -285,20 +383,52 @@ struct EmptyDayView: View {
             }
 
             VStack(spacing: 12) {
-                Button(action: onStartNew) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Start New Workout")
-                            .fontWeight(.semibold)
+                // Resume Current Workout (if draft exists)
+                if historyManager.hasDraft {
+                    Button(action: onStartLogging) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                            Text("Resume Current Workout")
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.utOrange, Color.utOrange.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
+                        .shadow(color: Color.utOrange.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.utOrange)
-                    .cornerRadius(12)
+                    .buttonStyle(.plain)
                 }
 
-                Button(action: onPickFromPast) {
+                Button(action: onStartLogging) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                        Text(historyManager.hasDraft ? "Start New Workout" : "Start New Workout")
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(historyManager.hasDraft ? .utOrange : .white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(historyManager.hasDraft ? Color.clear : Color.utOrange)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(historyManager.hasDraft ? Color.utOrange : Color.clear, lineWidth: 2)
+                    )
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink(destination: PastWorkoutsPickerView(
+                    historyManager: historyManager,
+                    onSelect: onSelectTemplate
+                )) {
                     HStack(spacing: 8) {
                         Image(systemName: "star.fill")
                         Text("Use Favorite Workout")
@@ -312,6 +442,7 @@ struct EmptyDayView: View {
                             .stroke(Color.utOrange, lineWidth: 2)
                     )
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 40)
 
@@ -324,7 +455,8 @@ struct EmptyDayView: View {
 
 struct DayWorkoutsView: View {
     let workouts: [SavedWorkout]
-    let onStartNew: () -> Void
+    @ObservedObject var historyManager: WorkoutHistoryManager
+    let onStartLogging: () -> Void
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -343,17 +475,31 @@ struct DayWorkoutsView: View {
             }
 
             // Floating Action Button
-            Button(action: onStartNew) {
-                Image(systemName: "plus")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(width: 60, height: 60)
-                    .background(
+            Button(action: onStartLogging) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: historyManager.hasDraft ? "arrow.clockwise" : "plus")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(width: 60, height: 60)
+                        .background(
+                            Circle()
+                                .fill(Color.utOrange)
+                                .shadow(color: Color.utOrange.opacity(0.4), radius: 12, x: 0, y: 4)
+                        )
+
+                    // Badge indicator for draft
+                    if historyManager.hasDraft {
                         Circle()
-                            .fill(Color.utOrange)
-                            .shadow(color: Color.utOrange.opacity(0.4), radius: 12, x: 0, y: 4)
-                    )
+                            .fill(Color.green)
+                            .frame(width: 16, height: 16)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white, lineWidth: 2)
+                            )
+                            .offset(x: 2, y: -2)
+                    }
+                }
             }
             .padding(.trailing, 20)
             .padding(.bottom, 100)
@@ -759,26 +905,31 @@ struct WorkoutExerciseDetailCard: View {
 struct PastWorkoutsPickerView: View {
     @ObservedObject var historyManager: WorkoutHistoryManager
     let onSelect: (SavedWorkout) -> Void
-    let onDismiss: () -> Void
+    @Environment(\.presentationMode) var presentationMode
 
     private var favoriteWorkouts: [SavedWorkout] {
         historyManager.savedWorkouts.filter { $0.isFavorite }
     }
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                CustomTabHeader(
-                    title: "Favorite Workouts",
-                    trailingButton: AnyView(
-                        Button("Cancel") {
-                            onDismiss()
+        VStack(spacing: 0) {
+            CustomTabHeader(
+                title: "Favorite Workouts",
+                leadingButton: AnyView(
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                            Text("Back")
                         }
                         .foregroundColor(.utOrange)
-                        .fontWeight(.semibold)
-                    ),
-                    isSubScreen: true
-                )
+                    }
+                ),
+                isSubScreen: true
+            )
 
                 Group {
                     if favoriteWorkouts.isEmpty {
@@ -808,6 +959,7 @@ struct PastWorkoutsPickerView: View {
                             ForEach(favoriteWorkouts) { workout in
                                 Button(action: {
                                     onSelect(workout)
+                                    presentationMode.wrappedValue.dismiss()
                                 }) {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 8) {
@@ -834,6 +986,7 @@ struct PastWorkoutsPickerView: View {
                                     }
                                     .padding(.vertical, 4)
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                         .listStyle(.plain)
@@ -849,7 +1002,6 @@ struct PastWorkoutsPickerView: View {
         formatter.dateStyle = .medium
         return formatter.string(from: date)
     }
-}
 
 // MARK: - Edit Workout View
 

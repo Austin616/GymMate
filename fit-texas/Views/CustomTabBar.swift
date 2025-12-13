@@ -40,6 +40,7 @@ enum TabItem: Int, CaseIterable {
 struct CustomTabBarView: View {
     @Binding var selectedTab: TabItem
     @EnvironmentObject var authManager: AuthManager
+    @StateObject private var historyManager = WorkoutHistoryManager()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -57,7 +58,10 @@ struct CustomTabBarView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Custom Tab Bar
-            CustomTabBar(selectedTab: $selectedTab)
+            CustomTabBar(
+                selectedTab: $selectedTab,
+                hasActiveWorkout: historyManager.hasDraft
+            )
                 .edgesIgnoringSafeArea(.bottom)
         }
         .ignoresSafeArea(.keyboard)
@@ -66,6 +70,7 @@ struct CustomTabBarView: View {
 
 struct CustomTabBar: View {
     @Binding var selectedTab: TabItem
+    let hasActiveWorkout: Bool
     @Namespace private var animation
 
     var body: some View {
@@ -77,7 +82,8 @@ struct CustomTabBar: View {
                     TabBarButton(
                         tab: tab,
                         selectedTab: $selectedTab,
-                        animation: animation
+                        animation: animation,
+                        hasActiveWorkout: hasActiveWorkout
                     )
                 }
             }
@@ -91,6 +97,7 @@ struct TabBarButton: View {
     let tab: TabItem
     @Binding var selectedTab: TabItem
     var animation: Namespace.ID
+    let hasActiveWorkout: Bool
 
     private var isSelected: Bool {
         selectedTab == tab
@@ -103,10 +110,20 @@ struct TabBarButton: View {
             }
         }) {
             VStack(spacing: 4) {
-                Image(systemName: isSelected ? tab.iconFilled : tab.icon)
-                    .font(.system(size: 24, weight: .regular))
-                    .foregroundColor(isSelected ? .utOrange : .secondary)
-                    .frame(height: 24)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: isSelected ? tab.iconFilled : tab.icon)
+                        .font(.system(size: 24, weight: .regular))
+                        .foregroundColor(isSelected ? .utOrange : .secondary)
+                        .frame(height: 24)
+
+                    if tab == .log && hasActiveWorkout {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 10, height: 10)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .offset(x: 8, y: -8)
+                    }
+                }
 
                 Text(tab.title)
                     .font(.system(size: 10, weight: .medium))

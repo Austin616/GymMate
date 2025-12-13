@@ -9,30 +9,46 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
-    
+    @Environment(\.presentationMode) var presentationMode
+
     var body: some View {
-        VStack(spacing: 30) {
-            Text("Settings")
-                .font(.largeTitle)
-                .bold()
-            
-            Button(action: {
-                authManager.signOut()
-            }) {
-                HStack {
-                    Image(systemName: "arrow.right.square")
-                    Text("Sign Out")
-                        .fontWeight(.semibold)
+        VStack(spacing: 0) {
+            CustomTabHeader(
+                title: "Settings",
+                leadingButton: AnyView(
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                            Text("Back")
+                        }
+                        .foregroundColor(.utOrange)
+                    }
+                ),
+                isSubScreen: true
+            )
+
+            List {
+                Section {
+                    Button(action: {
+                        authManager.signOut()
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.right.square")
+                                .foregroundColor(.red)
+                            Text("Sign Out")
+                                .foregroundColor(.red)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.utOrange)
-                .foregroundColor(.white)
-                .cornerRadius(12)
             }
-            .padding(.horizontal, 40)
+            .listStyle(.insetGrouped)
         }
-        .padding(.top, 60)
+        .navigationBarHidden(true)
     }
 }
 

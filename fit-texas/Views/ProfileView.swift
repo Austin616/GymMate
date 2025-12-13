@@ -66,12 +66,16 @@ struct ProfileView: View {
 
                     // Calendar Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Calendar")
+                        Text("Workout Calendar")
                             .font(.headline)
                             .padding(.horizontal)
 
-                        CalendarView(selectedDate: $selectedDate)
-                            .padding(.horizontal, 8)
+                        WorkoutCalendarView(
+                            selectedDate: $selectedDate,
+                            workouts: historyManager.savedWorkouts,
+                            historyManager: historyManager
+                        )
+                        .padding(.horizontal, 8)
                     }
 
                     // Stats Cards
@@ -98,10 +102,12 @@ struct ProfileView: View {
                 }
             }
             .navigationBarHidden(true)
-            .sheet(isPresented: $showSettings) {
-                SettingsSheet()
-                    .environmentObject(authManager)
-            }
+            .background(
+                NavigationLink(destination: SettingsView().environmentObject(authManager), isActive: $showSettings) {
+                    EmptyView()
+                }
+                .hidden()
+            )
             .onAppear {
                 if !statsLoaded {
                     print("📊 [PROFILE] Loading stats...")
@@ -114,6 +120,240 @@ struct ProfileView: View {
                 statsManager.calculateStats(from: newWorkouts)
             }
         }
+    }
+}
+
+struct WorkoutCalendarView: View {
+    @Binding var selectedDate: Date
+    let workouts: [SavedWorkout]
+    @ObservedObject var historyManager: WorkoutHistoryManager
+
+    private func hasWorkout(on date: Date) -> Bool {
+        workouts.contains { workout in
+            Calendar.current.isDate(workout.date, inSameDayAs: date)
+        }
+    }
+
+    var body: some View {
+        NavigationCalendarView(
+            selectedDate: $selectedDate,
+            hasWorkout: hasWorkout,
+            historyManager: historyManager
+        )
+    }
+}
+
+struct NavigationCalendarView: View {
+    @Binding var selectedDate: Date
+    @State private var currentMonth = Date()
+    let hasWorkout: (Date) -> Bool
+    @ObservedObject var historyManager: WorkoutHistoryManager
+
+    private let calendar = Calendar.current
+    private let daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+    private var monthYearString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: currentMonth)
+    }
+
+    private var days: [Date] {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth),
+              let monthFirstWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.start) else {
+            return []
+        }
+
+        var dates: [Date] = []
+        var date = monthFirstWeek.start
+
+        while date < monthInterval.end {
+            dates.append(date)
+            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: date) else { break }
+            date = nextDate
+        }
+
+        return dates
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // Month/Year Header
+            HStack {
+                Button(action: previousMonth) {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(.utOrange)
+                }
+
+                Spacer()
+
+                Text(monthYearString)
+                    .font(.headline)
+
+                Spacer()
+
+                Button(action: nextMonth) {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.utOrange)
+                }
+            }
+            .padding(.horizontal)
+
+            // Days of Week
+            HStack(spacing: 0) {
+                ForEach(daysOfWeek, id: \.self) { day in
+                    Text(day)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            // Calendar Grid
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
+                ForEach(days, id: \.self) { date in
+                    NavigationLink(destination: DayDetailView(
+                        selectedDate: date,
+                        historyManager: historyManager
+                    )) {
+                        CalendarDayCell(
+                            date: date,
+                            selectedDate: selectedDate,
+                            currentMonth: currentMonth,
+                            hasWorkout: hasWorkout(date)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.systemGray6))
+        )
+    }
+
+    private func previousMonth() {
+        guard let newMonth = calendar.date(byAdding: .month, value: -1, to: currentMonth) else { return }
+        currentMonth = newMonth
+    }
+
+    private func nextMonth() {
+        guard let newMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) else { return }
+        currentMonth = newMonth
+    }
+}
+
+struct CalendarDayCell: View {
+    let date: Date
+    let selectedDate: Date
+    let currentMonth: Date
+    let hasWorkout: Bool
+
+    private let calendar = Calendar.current
+
+    private var isToday: Bool {
+        calendar.isDateInToday(date)
+    }
+
+    private var isInCurrentMonth: Bool {
+        calendar.isDate(date, equalTo: currentMonth, toGranularity: .month)
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text("\(calendar.component(.day, from: date))")
+                .font(.subheadline)
+                .fontWeight(isToday ? .bold : .regular)
+                .foregroundColor(
+                    isToday ? .utOrange :
+                    isInCurrentMonth ? .primary : .secondary
+                )
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .stroke(isToday ? Color.utOrange : Color.clear, lineWidth: 2)
+                )
+
+            // Workout indicator dot
+            Circle()
+                .fill(hasWorkout ? Color.utOrange : Color.clear)
+                .frame(width: 4, height: 4)
+        }
+        .opacity(isInCurrentMonth ? 1.0 : 0.4)
+    }
+}
+
+struct DayDetailView: View {
+    let selectedDate: Date
+    @ObservedObject var historyManager: WorkoutHistoryManager
+    @Environment(\.presentationMode) var presentationMode
+
+    private var workoutsForDay: [SavedWorkout] {
+        historyManager.savedWorkouts.filter { workout in
+            Calendar.current.isDate(workout.date, inSameDayAs: selectedDate)
+        }
+    }
+
+    private var dateString: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        return formatter.string(from: selectedDate)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CustomTabHeader(
+                title: dateString,
+                leadingButton: AnyView(
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                            Text("Back")
+                        }
+                        .foregroundColor(.utOrange)
+                    }
+                ),
+                isSubScreen: true
+            )
+
+            if workoutsForDay.isEmpty {
+                // Empty State
+                VStack(spacing: 20) {
+                    Spacer()
+
+                    Image(systemName: "calendar.badge.exclamationmark")
+                        .font(.system(size: 60))
+                        .foregroundColor(.secondary)
+
+                    Text("No workouts on this day")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+                }
+            } else {
+                // Workouts List
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(workoutsForDay) { workout in
+                            NavigationLink(destination: WorkoutDetailView(workout: workout)) {
+                                WorkoutHistoryCard(workout: workout)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding()
+                }
+            }
+        }
+        .navigationBarHidden(true)
     }
 }
 
@@ -285,44 +525,103 @@ struct CalendarDayView: View {
     }
 }
 
-struct SettingsSheet: View {
-    @EnvironmentObject var authManager: AuthManager
-    @Environment(\.dismiss) private var dismiss
+struct WorkoutHistoryCard: View {
+    let workout: SavedWorkout
+
+    private var timeString: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: workout.date)
+    }
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                CustomTabHeader(
-                    title: "Settings",
-                    trailingButton: AnyView(
-                        Button("Done") {
-                            dismiss()
-                        }
-                        .foregroundColor(.utOrange)
-                        .fontWeight(.semibold)
-                    ),
-                    isSubScreen: true
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(workout.name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text(timeString)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(
+                LinearGradient(
+                    colors: [Color.utOrange.opacity(0.15), Color.utOrange.opacity(0.05)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+
+            // Stats
+            HStack(spacing: 0) {
+                StatItemCompact(
+                    icon: "figure.strengthtraining.traditional",
+                    value: "\(workout.exercises.count)",
+                    label: "exercises"
                 )
 
-                List {
-                    Section {
-                        Button(action: {
-                            authManager.signOut()
-                            dismiss()
-                        }) {
-                            HStack {
-                                Image(systemName: "arrow.right.square")
-                                    .foregroundColor(.red)
-                                Text("Sign Out")
-                                    .foregroundColor(.red)
-                            }
-                        }
-                    }
-                }
-                .listStyle(.insetGrouped)
+                Divider()
+                    .frame(height: 30)
+
+                StatItemCompact(
+                    icon: "number.circle.fill",
+                    value: "\(workout.totalSets)",
+                    label: "sets"
+                )
+
+                Divider()
+                    .frame(height: 30)
+
+                StatItemCompact(
+                    icon: "scalemass.fill",
+                    value: "\(Int(workout.totalVolume))",
+                    label: "kg"
+                )
             }
-            .navigationBarHidden(true)
+            .padding(.vertical, 10)
+            .background(Color(.systemBackground))
         }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+}
+
+struct StatItemCompact: View {
+    let icon: String
+    let value: String
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(.utOrange)
+
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
