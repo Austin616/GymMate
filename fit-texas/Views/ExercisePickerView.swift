@@ -345,10 +345,6 @@ struct ExercisePickerView: View {
     private func muscleExerciseListView(for muscleGroup: String) -> some View {
         MuscleExerciseListView(muscleGroup: muscleGroup, onSelect: { exerciseName in
             onSelect(exerciseName)
-            // Dismiss both MuscleExerciseListView and ExercisePickerView
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                dismiss()
-            }
         })
     }
 
@@ -637,7 +633,6 @@ struct MuscleExerciseListView: View {
                 clearFilters: clearFilters,
                 onSelect: { exerciseName in
                     onSelect(exerciseName)
-                    dismiss()
                 }
             )
         }
@@ -804,7 +799,6 @@ struct ExerciseListContent: View {
     let hasActiveFilters: Bool
     let clearFilters: () -> Void
     let onSelect: (String) -> Void
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Group {
@@ -821,10 +815,7 @@ struct ExerciseListContent: View {
                     )
                     List {
                         ForEach(exercises) { exercise in
-                            ExerciseRowButton(exercise: exercise, onSelect: { name in
-                                onSelect(name)
-                                dismiss()
-                            })
+                            ExerciseRowButton(exercise: exercise, onSelect: onSelect)
                         }
                     }
                     .listStyle(.plain)
@@ -832,10 +823,7 @@ struct ExerciseListContent: View {
             } else {
                 List {
                     ForEach(exercises) { exercise in
-                        ExerciseRowButton(exercise: exercise, onSelect: { name in
-                            onSelect(name)
-                            dismiss()
-                        })
+                        ExerciseRowButton(exercise: exercise, onSelect: onSelect)
                     }
                 }
                 .listStyle(.plain)

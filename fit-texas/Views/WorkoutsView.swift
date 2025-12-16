@@ -70,6 +70,14 @@ struct WorkoutsView: View {
                             selectedDate: selectedDate,
                             historyManager: historyManager,
                             onStartLogging: {
+                                // Create empty draft immediately
+                                let draft = WorkoutDraft(
+                                    workoutName: "",
+                                    startTime: Date(),
+                                    exercises: [],
+                                    lastModified: Date()
+                                )
+                                historyManager.saveDraft(draft)
                                 isLogging = true
                                 selectedTemplate = nil
                             },
@@ -83,6 +91,14 @@ struct WorkoutsView: View {
                             workouts: workoutsForSelectedDay,
                             historyManager: historyManager,
                             onStartLogging: {
+                                // Create empty draft immediately
+                                let draft = WorkoutDraft(
+                                    workoutName: "",
+                                    startTime: Date(),
+                                    exercises: [],
+                                    lastModified: Date()
+                                )
+                                historyManager.saveDraft(draft)
                                 isLogging = true
                                 selectedTemplate = nil
                             }

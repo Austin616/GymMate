@@ -255,6 +255,7 @@ struct ActiveWorkoutView: View {
     @State private var showExercisePicker: Bool = false
     @State private var showExerciseAddedAlert: Bool = false
     @State private var lastAddedExerciseName: String = ""
+    @State private var showValidationAlert: Bool = false
 
     var totalVolume: Double {
         exercises.reduce(0.0) { total, exercise in
@@ -297,11 +298,38 @@ struct ActiveWorkoutView: View {
         return true
     }
 
+    var validationMessage: String {
+        // Check if no exercises
+        if exercises.isEmpty {
+            return "Add at least one exercise to save your workout."
+        }
+
+        // Check each exercise for valid sets
+        for exercise in exercises {
+            if exercise.sets.isEmpty {
+                return "Exercise '\(exercise.name)' needs at least one set."
+            }
+
+            let hasValidSet = exercise.sets.contains { set in
+                let reps = Double(set.reps) ?? 0.0
+                let weight = Double(set.weight) ?? 0.0
+                return reps > 0 && weight > 0
+            }
+
+            if !hasValidSet {
+                return "Exercise '\(exercise.name)' needs at least one set with both weight and reps filled in."
+            }
+        }
+
+        return ""
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-                CustomTabHeader(
-                    title: "Current Workout • \(elapsedTime)",
-                    leadingButton: AnyView(
+        NavigationView {
+            VStack(spacing: 0) {
+                // Header Section
+                VStack(spacing: 0) {
+                    HStack {
                         Button(action: {
                             // Just go back and save draft
                             if !exercises.isEmpty {
@@ -321,8 +349,9 @@ struct ActiveWorkoutView: View {
                             }
                             .foregroundColor(.utOrange)
                         }
-                    ),
-                    trailingButton: AnyView(
+
+                        Spacer()
+
                         HStack(spacing: 16) {
                             Button(action: {
                                 showCancelConfirmation = true
@@ -332,31 +361,50 @@ struct ActiveWorkoutView: View {
                                     .foregroundColor(.red)
                             }
 
-                            Button(action: saveWorkout) {
+                            Button(action: {
+                                if !canSaveWorkout {
+                                    showValidationAlert = true
+                                } else {
+                                    saveWorkout()
+                                }
+                            }) {
                                 if isSaving {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .utOrange))
                                 } else {
                                     Text("Finish")
                                         .fontWeight(.semibold)
-                                        .foregroundColor(canSaveWorkout ? .utOrange : .secondary)
+                                        .foregroundColor(.utOrange)
                                 }
                             }
-                            .disabled(!canSaveWorkout || isSaving)
+                            .disabled(isSaving)
                         }
-                    ),
-                    isSubScreen: true
-                )
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
 
-                ZStack {
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color(.systemGray6), Color(.systemBackground)]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .ignoresSafeArea()
+                    // Centered Timer
+                    VStack(spacing: 4) {
+                        Text("Current Workout")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
 
-                    VStack(spacing: 0) {
+                        Text(elapsedTime)
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundColor(.utOrange)
+                            .monospacedDigit()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color(.systemGray6).opacity(0.3))
+
+                    Divider()
+                }
+                .background(Color(.systemBackground))
+
+                // Content Section
+                VStack(spacing: 0) {
                         VStack(spacing: 12) {
                             HStack(spacing: 8) {
                                 StatCard(title: "Volume", value: String(format: "%.0f kg", totalVolume), icon: "scalemass.fill")
@@ -427,11 +475,11 @@ struct ActiveWorkoutView: View {
                         .padding(.horizontal, 0)
                         .frame(maxWidth: .infinity)
                     }
-                    }
-                    .frame(maxWidth: .infinity)
                 }
-
-                // Exercise Added Confirmation Toast (Top)
+                .background(Color(.systemGray6).opacity(0.3))
+            }
+            .overlay(
+                // Exercise Added Confirmation Toast (overlay at top)
                 VStack {
                     if showExerciseAddedAlert {
                         HStack(spacing: 12) {
@@ -463,7 +511,8 @@ struct ActiveWorkoutView: View {
                     }
                     Spacer()
                 }
-            }
+                , alignment: .top
+            )
             .navigationBarHidden(true)
             .alert("Name Your Workout", isPresented: $showNamePrompt) {
                 TextField("e.g. Morning Push Day", text: $workoutName)
@@ -492,6 +541,11 @@ struct ActiveWorkoutView: View {
             } message: {
                 Text("Your workout will not be saved.")
             }
+            .alert("Cannot Save Workout", isPresented: $showValidationAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(validationMessage)
+            }
             .onAppear {
                 loadTemplate()
                 // Start workout timer if not already running
@@ -505,6 +559,8 @@ struct ActiveWorkoutView: View {
                     saveDraft()
                 }
             }
+        }
+        .navigationViewStyle(.stack)
     }
 
     func bindingForExercise(at index: Int) -> Binding<WorkoutExercise> {
