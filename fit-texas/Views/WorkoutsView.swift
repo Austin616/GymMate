@@ -41,6 +41,15 @@ struct WorkoutsView: View {
                         selectedTemplate = nil
                     }
                 )
+            } else if historyManager.hasDraft {
+                // Show Active Workout Preview
+                ActiveWorkoutPreviewScreen(
+                    historyManager: historyManager,
+                    onResume: {
+                        isLogging = true
+                    }
+                )
+                .navigationBarHidden(true)
             } else {
                 // View Mode - Show day navigator and workouts
                 VStack(spacing: 0) {
@@ -81,12 +90,6 @@ struct WorkoutsView: View {
                     }
                 }
                 .navigationBarHidden(true)
-            }
-        }
-        .onAppear {
-            // Auto-enter logging mode if draft exists
-            if historyManager.hasDraft {
-                isLogging = true
             }
         }
     }

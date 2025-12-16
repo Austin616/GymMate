@@ -106,35 +106,22 @@ struct ExercisePickerView: View {
             }
 
             // Content
-            Group {
-                if isSearching {
-                    // Show exercises directly when searching
-                    exerciseList(filteredExercises)
-                        .transition(.opacity)
-                        .id("search")
+            if isSearching {
+                // Show exercises directly when searching
+                exerciseList(filteredExercises)
+            } else {
+                // Show muscle groups or all exercises based on toggle
+                if viewMode == .muscleGroups {
+                    muscleGroupList
                 } else {
-                    // Show muscle groups or all exercises based on toggle
-                    if viewMode == .muscleGroups {
-                        muscleGroupList
-                            .transition(.opacity)
-                            .id("muscle-groups")
-                    } else {
-                        exerciseList(allFilteredExercises)
-                            .transition(.opacity)
-                            .id("all-exercises")
-                    }
+                    exerciseList(allFilteredExercises)
                 }
             }
         }
-        .animation(.default, value: viewMode)
-        .animation(.default, value: isSearching)
-        .animation(.default, value: showFilters)
         .navigationBarHidden(true)
         .onChange(of: viewMode) { _ in
             if showFilters {
-                withAnimation {
-                    showFilters = false
-                }
+                showFilters = false
             }
         }
         .onAppear {
@@ -146,7 +133,9 @@ struct ExercisePickerView: View {
     private var viewModeToggle: some View {
         HStack(spacing: 0) {
             Button(action: {
-                viewMode = .muscleGroups
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewMode = .muscleGroups
+                }
             }) {
                 Text("Muscle Groups")
                     .font(.subheadline)
@@ -159,7 +148,9 @@ struct ExercisePickerView: View {
             .buttonStyle(.plain)
 
             Button(action: {
-                viewMode = .allExercises
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewMode = .allExercises
+                }
             }) {
                 Text("All Exercises")
                     .font(.subheadline)
@@ -354,7 +345,10 @@ struct ExercisePickerView: View {
     private func muscleExerciseListView(for muscleGroup: String) -> some View {
         MuscleExerciseListView(muscleGroup: muscleGroup, onSelect: { exerciseName in
             onSelect(exerciseName)
-            dismiss()
+            // Dismiss both MuscleExerciseListView and ExercisePickerView
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                dismiss()
+            }
         })
     }
 
@@ -810,6 +804,7 @@ struct ExerciseListContent: View {
     let hasActiveFilters: Bool
     let clearFilters: () -> Void
     let onSelect: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Group {
@@ -826,7 +821,10 @@ struct ExerciseListContent: View {
                     )
                     List {
                         ForEach(exercises) { exercise in
-                            ExerciseRowButton(exercise: exercise, onSelect: onSelect)
+                            ExerciseRowButton(exercise: exercise, onSelect: { name in
+                                onSelect(name)
+                                dismiss()
+                            })
                         }
                     }
                     .listStyle(.plain)
@@ -834,7 +832,10 @@ struct ExerciseListContent: View {
             } else {
                 List {
                     ForEach(exercises) { exercise in
-                        ExerciseRowButton(exercise: exercise, onSelect: onSelect)
+                        ExerciseRowButton(exercise: exercise, onSelect: { name in
+                            onSelect(name)
+                            dismiss()
+                        })
                     }
                 }
                 .listStyle(.plain)

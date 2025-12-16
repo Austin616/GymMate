@@ -253,6 +253,8 @@ struct ActiveWorkoutView: View {
     @State private var isSaving: Bool = false
     @State private var showCancelConfirmation: Bool = false
     @State private var showExercisePicker: Bool = false
+    @State private var showExerciseAddedAlert: Bool = false
+    @State private var lastAddedExerciseName: String = ""
 
     var totalVolume: Double {
         exercises.reduce(0.0) { total, exercise in
@@ -272,46 +274,79 @@ struct ActiveWorkoutView: View {
         timerManager.formattedElapsedTime()
     }
 
+    var canSaveWorkout: Bool {
+        // Must have at least one exercise
+        guard !exercises.isEmpty else { return false }
+
+        // All exercises must have at least one valid set
+        for exercise in exercises {
+            guard !exercise.sets.isEmpty else { return false }
+
+            // At least one set must have valid reps AND weight (both non-zero)
+            let hasValidSet = exercise.sets.contains { set in
+                let reps = Double(set.reps) ?? 0.0
+                let weight = Double(set.weight) ?? 0.0
+                return reps > 0 && weight > 0
+            }
+
+            if !hasValidSet {
+                return false
+            }
+        }
+
+        return true
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            CustomTabHeader(
-                title: "Current Workout • \(elapsedTime)",
-                leadingButton: AnyView(
-                    Button(action: {
-                        // Save as draft when going back
-                        if !exercises.isEmpty {
-                            saveDraft()
+                CustomTabHeader(
+                    title: "Current Workout • \(elapsedTime)",
+                    leadingButton: AnyView(
+                        Button(action: {
+                            // Just go back and save draft
+                            if !exercises.isEmpty {
+                                saveDraft()
+                            }
+                            if let onCancel = onCancel {
+                                onCancel()
+                            } else {
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.body)
+                                    .fontWeight(.semibold)
+                                Text("Back")
+                            }
+                            .foregroundColor(.utOrange)
                         }
-                        if let onCancel = onCancel {
-                            onCancel()
-                        } else {
-                            presentationMode.wrappedValue.dismiss()
+                    ),
+                    trailingButton: AnyView(
+                        HStack(spacing: 16) {
+                            Button(action: {
+                                showCancelConfirmation = true
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
+                                    .foregroundColor(.red)
+                            }
+
+                            Button(action: saveWorkout) {
+                                if isSaving {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .utOrange))
+                                } else {
+                                    Text("Finish")
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(canSaveWorkout ? .utOrange : .secondary)
+                                }
+                            }
+                            .disabled(!canSaveWorkout || isSaving)
                         }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                            Text("Back")
-                        }
-                        .foregroundColor(.utOrange)
-                    }
-                ),
-                trailingButton: AnyView(
-                    Button(action: saveWorkout) {
-                        if isSaving {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .utOrange))
-                        } else {
-                            Text("Finish")
-                                .fontWeight(.semibold)
-                                .foregroundColor(exercises.isEmpty ? .secondary : .utOrange)
-                        }
-                    }
-                    .disabled(exercises.isEmpty || isSaving)
-                ),
-                isSubScreen: true
-            )
+                    ),
+                    isSubScreen: true
+                )
 
                 ZStack {
                     LinearGradient(
@@ -373,7 +408,7 @@ struct ActiveWorkoutView: View {
                             }
                             .buttonStyle(.plain)
                             .padding(.horizontal, 8)
-                            .padding(.bottom, 12)
+                            .padding(.bottom, 100)
 
                             NavigationLink(
                                 destination: ExercisePickerView(
@@ -395,6 +430,39 @@ struct ActiveWorkoutView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
+
+                // Exercise Added Confirmation Toast (Top)
+                VStack {
+                    if showExerciseAddedAlert {
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.green)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Exercise Added")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Text(lastAddedExerciseName)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(.systemBackground))
+                                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+                        )
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    Spacer()
+                }
             }
             .navigationBarHidden(true)
             .alert("Name Your Workout", isPresented: $showNamePrompt) {
@@ -411,7 +479,15 @@ struct ActiveWorkoutView: View {
             .alert("Discard Workout?", isPresented: $showCancelConfirmation) {
                 Button("Keep Editing", role: .cancel) { }
                 Button("Discard", role: .destructive) {
-                    presentationMode.wrappedValue.dismiss()
+                    // Clear the draft and stop timer
+                    timerManager.stopWorkout()
+                    historyManager.clearDraft()
+
+                    if let onCancel = onCancel {
+                        onCancel()
+                    } else {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
             } message: {
                 Text("Your workout will not be saved.")
@@ -442,11 +518,26 @@ struct ActiveWorkoutView: View {
         let newExercise = WorkoutExercise(
             name: name,
             sets: [
-                WorkoutSet(reps: "", weight: "", isWarmup: true),
                 WorkoutSet(reps: "", weight: "")
             ]
         )
-        exercises.append(newExercise)
+
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            exercises.append(newExercise)
+        }
+
+        // Show confirmation toast with animation
+        lastAddedExerciseName = name
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            showExerciseAddedAlert = true
+        }
+
+        // Hide alert after 2.5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                showExerciseAddedAlert = false
+            }
+        }
     }
 
     func deleteExercise(at index: Int) {
@@ -492,7 +583,7 @@ struct ActiveWorkoutView: View {
     }
 
     func saveWorkout() {
-        guard !exercises.isEmpty else { return }
+        guard canSaveWorkout else { return }
         isSaving = true
         showNamePrompt = true
     }

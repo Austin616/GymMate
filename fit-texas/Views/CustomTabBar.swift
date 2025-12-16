@@ -62,20 +62,20 @@ struct CustomTabBarView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // Workout Preview Card
-                if historyManager.hasDraft {
+                // Workout Preview Card (hide on Log tab)
+                if historyManager.hasDraft && selectedTab != .log {
                     ActiveWorkoutPreview(
                         historyManager: historyManager,
                         timerManager: timerManager,
                         onTap: {
-                            withAnimation {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 selectedTab = .log
                             }
                         }
                     )
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
-                    .transition(.identity) // No animation - disappears instantly
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 // Custom Tab Bar
@@ -85,7 +85,8 @@ struct CustomTabBarView: View {
                 )
                 .edgesIgnoringSafeArea(.bottom)
             }
-            .animation(.none, value: historyManager.hasDraft) // Disable animation for preview show/hide
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: historyManager.hasDraft)
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedTab)
         }
         .ignoresSafeArea(.keyboard)
     }
