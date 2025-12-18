@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct WorkoutsView: View {
-    @StateObject private var historyManager = WorkoutHistoryManager()
+    @ObservedObject private var historyManager = WorkoutHistoryManager.shared
     @State private var selectedDate = Date()
     @State private var isLogging: Bool = false
     @State private var selectedTemplate: SavedWorkout?
@@ -631,7 +631,7 @@ struct StatItem: View {
 
 struct WorkoutDetailView: View {
     let workout: SavedWorkout
-    @StateObject private var historyManager = WorkoutHistoryManager()
+    @ObservedObject private var historyManager = WorkoutHistoryManager.shared
     @Environment(\.presentationMode) var presentationMode
 
     @State private var workoutName: String
@@ -1028,7 +1028,7 @@ struct EditWorkoutView: View {
     let workout: SavedWorkout
     let onDismiss: () -> Void
 
-    @StateObject private var historyManager = WorkoutHistoryManager()
+    @ObservedObject private var historyManager = WorkoutHistoryManager.shared
     @State private var workoutName: String
     @State private var exercises: [WorkoutExercise]
     @State private var showDeleteConfirmation = false

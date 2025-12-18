@@ -11,6 +11,7 @@ import SwiftUI
 struct ActiveWorkoutPreviewScreen: View {
     @ObservedObject var historyManager: WorkoutHistoryManager
     @EnvironmentObject var timerManager: WorkoutTimerManager
+    @ObservedObject private var settingsManager = SettingsManager.shared
     let onResume: () -> Void
 
     private var exerciseCount: Int {
@@ -97,7 +98,7 @@ struct ActiveWorkoutPreviewScreen: View {
 
                     StatPreviewCard(
                         title: "Volume",
-                        value: String(format: "%.0f kg", totalVolume),
+                        value: String(format: "%.0f \(settingsManager.weightUnit.rawValue)", totalVolume),
                         icon: "scalemass.fill"
                     )
                 }
@@ -243,40 +244,40 @@ struct ActiveWorkoutPreview: View {
 }
 
 #Preview {
-    let historyManager = WorkoutHistoryManager()
-    historyManager.currentDraft = WorkoutDraft(
-        workoutName: "Test Workout",
-        startTime: Date(),
-        exercises: [
-            WorkoutExercise(
-                id: UUID(),
-                name: "Bench Press",
-                sets: [
-                    WorkoutSet(id: UUID(), reps: "10", weight: "135", rpe: "7", isCompleted: true, isWarmup: false, isDropSet: false),
-                    WorkoutSet(id: UUID(), reps: "8", weight: "145", rpe: "8", isCompleted: true, isWarmup: false, isDropSet: false),
-                    WorkoutSet(id: UUID(), reps: "6", weight: "155", rpe: "9", isCompleted: false, isWarmup: false, isDropSet: false)
-                ],
-                notes: ""
-            ),
-            WorkoutExercise(
-                id: UUID(),
-                name: "Squat",
-                sets: [
-                    WorkoutSet(id: UUID(), reps: "10", weight: "185", rpe: "7", isCompleted: false, isWarmup: false, isDropSet: false)
-                ],
-                notes: ""
-            )
-        ],
-        lastModified: Date()
-    )
-
-    return VStack {
+    VStack {
         Spacer()
         ActiveWorkoutPreview(
-            historyManager: historyManager,
+            historyManager: WorkoutHistoryManager.shared,
             timerManager: WorkoutTimerManager.shared,
             onTap: { print("Tapped") }
         )
         .padding(.horizontal, 16)
+    }
+    .onAppear {
+        WorkoutHistoryManager.shared.currentDraft = WorkoutDraft(
+            workoutName: "Test Workout",
+            startTime: Date(),
+            exercises: [
+                WorkoutExercise(
+                    id: UUID(),
+                    name: "Bench Press",
+                    sets: [
+                        WorkoutSet(id: UUID(), reps: "10", weight: "135", rpe: "7", isCompleted: true, isWarmup: false, isDropSet: false),
+                        WorkoutSet(id: UUID(), reps: "8", weight: "145", rpe: "8", isCompleted: true, isWarmup: false, isDropSet: false),
+                        WorkoutSet(id: UUID(), reps: "6", weight: "155", rpe: "9", isCompleted: false, isWarmup: false, isDropSet: false)
+                    ],
+                    notes: ""
+                ),
+                WorkoutExercise(
+                    id: UUID(),
+                    name: "Squat",
+                    sets: [
+                        WorkoutSet(id: UUID(), reps: "10", weight: "185", rpe: "7", isCompleted: false, isWarmup: false, isDropSet: false)
+                    ],
+                    notes: ""
+                )
+            ],
+            lastModified: Date()
+        )
     }
 }

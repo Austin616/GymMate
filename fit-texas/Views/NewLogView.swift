@@ -14,7 +14,7 @@ enum LogViewMode {
 }
 
 struct NewLogView: View {
-    @StateObject private var historyManager = WorkoutHistoryManager()
+    @ObservedObject private var historyManager = WorkoutHistoryManager.shared
     @State private var viewMode: LogViewMode = .history
     @State private var showNewWorkout = false
 
@@ -241,6 +241,7 @@ struct WorkoutHistoryRow: View {
 struct ActiveWorkoutView: View {
     @ObservedObject var historyManager: WorkoutHistoryManager
     @EnvironmentObject var timerManager: WorkoutTimerManager
+    @ObservedObject private var settingsManager = SettingsManager.shared
     let templateWorkout: SavedWorkout?
     var onFinish: (() -> Void)? = nil
     var onCancel: (() -> Void)? = nil
@@ -407,7 +408,7 @@ struct ActiveWorkoutView: View {
                 VStack(spacing: 0) {
                         VStack(spacing: 12) {
                             HStack(spacing: 8) {
-                                StatCard(title: "Volume", value: String(format: "%.0f kg", totalVolume), icon: "scalemass.fill")
+                                StatCard(title: "Volume", value: String(format: "%.0f \(settingsManager.weightUnit.rawValue)", totalVolume), icon: "scalemass.fill")
                                 StatCard(title: "Sets", value: "\(totalSets)", icon: "number.circle.fill")
                             }
                             .padding(.horizontal, 8)

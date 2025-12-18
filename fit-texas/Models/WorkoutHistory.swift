@@ -63,6 +63,8 @@ struct SavedWorkout: Identifiable, Codable, Equatable {
 }
 
 class WorkoutHistoryManager: ObservableObject {
+    static let shared = WorkoutHistoryManager()
+
     @Published var savedWorkouts: [SavedWorkout] = []
     @Published var isOnline: Bool = true
     @Published var isSyncing: Bool = false
@@ -72,7 +74,7 @@ class WorkoutHistoryManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let draftKey = "currentWorkoutDraft"
 
-    init() {
+    private init() {
         print("🔵 [HISTORY] Initializing WorkoutHistoryManager...")
         observeRepository()
         loadDraft()

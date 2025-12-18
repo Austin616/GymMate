@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
+    @ObservedObject private var settingsManager = SettingsManager.shared
     @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
@@ -32,6 +33,26 @@ struct SettingsView: View {
             )
 
             List {
+                Section(header: Text("Appearance")) {
+                    Toggle(isOn: $settingsManager.isDarkModeEnabled) {
+                        HStack {
+                            Image(systemName: "moon.fill")
+                                .foregroundColor(.utOrange)
+                            Text("Dark Mode")
+                        }
+                    }
+                    .tint(.utOrange)
+                }
+
+                Section(header: Text("Units")) {
+                    Picker("Weight Unit", selection: $settingsManager.weightUnit) {
+                        ForEach(WeightUnit.allCases, id: \.self) { unit in
+                            Text(unit.displayName).tag(unit)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
                 Section {
                     Button(action: {
                         authManager.signOut()

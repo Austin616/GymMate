@@ -10,7 +10,7 @@ import FirebaseAuth
 
 struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
-    @StateObject private var historyManager = WorkoutHistoryManager()
+    @ObservedObject private var historyManager = WorkoutHistoryManager.shared
     @StateObject private var statsManager = StatsManager()
     @State private var showSettings = false
     @State private var selectedDate = Date()

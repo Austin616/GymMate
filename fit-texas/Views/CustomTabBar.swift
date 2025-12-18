@@ -41,7 +41,7 @@ struct CustomTabBarView: View {
     @Binding var selectedTab: TabItem
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var timerManager: WorkoutTimerManager
-    @StateObject private var historyManager = WorkoutHistoryManager()
+    @ObservedObject private var historyManager = WorkoutHistoryManager.shared
 
     var body: some View {
         ZStack(alignment: .bottom) {

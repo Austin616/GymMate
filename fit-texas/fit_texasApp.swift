@@ -11,6 +11,7 @@ import FirebaseCore
 @main
 struct fit_texasApp: App {
     @StateObject private var timerManager = WorkoutTimerManager.shared
+    @ObservedObject private var settingsManager = SettingsManager.shared
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -21,6 +22,7 @@ struct fit_texasApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(timerManager)
+                .preferredColorScheme(settingsManager.isDarkModeEnabled ? .dark : .light)
                 .onAppear {
                     timerManager.initialize()
                 }
