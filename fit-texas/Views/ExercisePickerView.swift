@@ -835,43 +835,61 @@ struct ExerciseListContent: View {
 struct ExerciseRowButton: View {
     let exercise: Exercise
     let onSelect: (String) -> Void
+    @State private var showDetail = false
 
     var body: some View {
-        Button(action: {
-            onSelect(exercise.name)
-        }) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.utOrange.opacity(0.15))
-                        .frame(width: 30, height: 30)
-                    Image(systemName: "figure.strengthtraining.traditional")
-                        .font(.caption)
-                        .foregroundColor(.utOrange)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(exercise.name)
-                        .foregroundColor(.primary)
-                        .font(.body)
-
-                    if let equipment = exercise.equipment {
-                        Text(equipment.capitalized)
-                            .foregroundColor(.secondary)
+        HStack(spacing: 12) {
+            // Main row - tappable to show detail
+            Button(action: {
+                showDetail = true
+            }) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.utOrange.opacity(0.15))
+                            .frame(width: 30, height: 30)
+                        Image(systemName: "figure.strengthtraining.traditional")
                             .font(.caption)
+                            .foregroundColor(.utOrange)
                     }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(exercise.name)
+                            .foregroundColor(.primary)
+                            .font(.body)
+
+                        if let equipment = exercise.equipment {
+                            Text(equipment.capitalized)
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
+                    }
+
+                    Spacer()
                 }
-
-                Spacer()
-
-                Image(systemName: "plus.circle.fill")
-                    .foregroundColor(.utOrange)
-                    .font(.title3)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            // Quick add button
+            Button(action: {
+                onSelect(exercise.name)
+            }) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(.utOrange)
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, 4)
+        .sheet(isPresented: $showDetail) {
+            ExerciseDetailView(
+                exercise: exercise,
+                onAdd: {
+                    onSelect(exercise.name)
+                }
+            )
+        }
     }
 }
 

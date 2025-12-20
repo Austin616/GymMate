@@ -9,12 +9,14 @@ import SwiftUI
 
 enum TabItem: Int, CaseIterable {
     case home = 0
-    case log = 1
-    case profile = 2
+    case explore = 1
+    case log = 2
+    case profile = 3
 
     var title: String {
         switch self {
         case .home: return "Home"
+        case .explore: return "Explore"
         case .log: return "Log"
         case .profile: return "Profile"
         }
@@ -23,6 +25,7 @@ enum TabItem: Int, CaseIterable {
     var icon: String {
         switch self {
         case .home: return "house"
+        case .explore: return "watch"
         case .log: return "plus.circle.fill"
         case .profile: return "person"
         }
@@ -31,6 +34,7 @@ enum TabItem: Int, CaseIterable {
     var iconFilled: String {
         switch self {
         case .home: return "house.fill"
+        case .explore: return "compass.fill"
         case .log: return "plus.circle.fill"
         case .profile: return "person.fill"
         }
@@ -50,6 +54,8 @@ struct CustomTabBarView: View {
                 switch selectedTab {
                 case .home:
                     HomeView()
+                case .explore:
+                    ExploreView()
                 case .log:
                     WorkoutsView()
                 case .profile:
@@ -62,8 +68,8 @@ struct CustomTabBarView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // Workout Preview Card (hide on Log tab)
-                if historyManager.hasDraft && selectedTab != .log {
+                // Workout Preview Card (hide on Log and Explore tabs)
+                if historyManager.hasDraft && selectedTab != .log && selectedTab != .explore {
                     ActiveWorkoutPreview(
                         historyManager: historyManager,
                         timerManager: timerManager,

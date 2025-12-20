@@ -68,7 +68,6 @@
 		341B88A52EEB91DD0064F0DE /* Exceptions for "fit-texas" folder in "fit-texas" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				exercises,
 			);
 			target = 342DE8892ECD41EC0041785D /* fit-texas */;
 		};
