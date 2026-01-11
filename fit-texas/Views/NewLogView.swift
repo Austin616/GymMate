@@ -408,8 +408,9 @@ struct ActiveWorkoutView: View {
                 VStack(spacing: 0) {
                         VStack(spacing: 12) {
                             HStack(spacing: 8) {
-                                StatCard(title: "Volume", value: String(format: "%.0f \(settingsManager.weightUnit.rawValue)", totalVolume), icon: "scalemass.fill")
+                                StatCard(title: "Duration", value: elapsedTime, icon: "clock.fill")
                                 StatCard(title: "Sets", value: "\(totalSets)", icon: "number.circle.fill")
+                                StatCard(title: "Exercises", value: "\(exercises.count)", icon: "figure.strengthtraining.traditional")
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 8)
@@ -431,9 +432,11 @@ struct ActiveWorkoutView: View {
                                     onDelete: { deleteExercise(at: idx) },
                                     disabled: false
                                 )
+                                .padding(.horizontal, 8)
                             }
 
                             Button(action: {
+                                hideKeyboard()
                                 showExercisePicker = true
                             }) {
                                 HStack(spacing: 10) {
@@ -472,10 +475,16 @@ struct ActiveWorkoutView: View {
                             }
                             .hidden()
                         }
-                        .padding(.top, 10)
-                        .padding(.horizontal, 0)
-                        .frame(maxWidth: .infinity)
                     }
+                    .scrollDismissesKeyboard(.interactively)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 0)
+                            .onEnded { _ in
+                                hideKeyboard()
+                            }
+                    )
+                    .padding(.top, 10)
+                    .frame(maxWidth: .infinity)
                 }
                 .background(Color(.systemGray6).opacity(0.3))
             }
@@ -569,6 +578,10 @@ struct ActiveWorkoutView: View {
             get: { exercises[index] },
             set: { exercises[index] = $0 }
         )
+    }
+
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     func addExercise(name: String) {

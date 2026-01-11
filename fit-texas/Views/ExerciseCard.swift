@@ -8,11 +8,21 @@ struct ExerciseCard: View {
     var disabled: Bool
     @State private var hapticFeedback = UIImpactFeedbackGenerator(style: .medium)
     @State private var draggingSet: WorkoutSet?
-    
+    @State private var showingExerciseDetail = false
+
     private let cardPadding: CGFloat = 20
     private let cardCornerRadius: CGFloat = 28
     private let innerCornerRadius: CGFloat = 12
-    
+
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    private var exerciseFromWorkoutExercise: Exercise? {
+        // Load the exercise from the ExerciseLoader
+        return ExerciseLoader.shared.getAllExercises().first { $0.name == exercise.name }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             exerciseHeader
@@ -27,14 +37,20 @@ struct ExerciseCard: View {
     private var exerciseHeader: some View {
         HStack(spacing: 12) {
             exerciseIcon
-            
-            Text(exercise.name)
-                .font(.title3)
-                .fontWeight(.bold)
-                .lineLimit(1)
-            
+
+            Button(action: {
+                showingExerciseDetail = true
+            }) {
+                Text(exercise.name)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(.plain)
+
             Spacer(minLength: 8)
-            
+
             Menu {
                 Button(role: .destructive, action: handleDelete) {
                     Label("Delete Exercise", systemImage: "trash")
@@ -48,6 +64,11 @@ struct ExerciseCard: View {
             .disabled(disabled)
         }
         .padding(.bottom, 2)
+        .sheet(isPresented: $showingExerciseDetail) {
+            if let exerciseData = exerciseFromWorkoutExercise {
+                ExerciseDetailView(exercise: exerciseData, onAdd: {})
+            }
+        }
     }
     
     private var exerciseIcon: some View {
@@ -69,25 +90,41 @@ struct ExerciseCard: View {
     }
     
     private var setsSection: some View {
-        VStack(spacing: 0) {
+        List {
             ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { setIdx, set in
                 setRowView(setIdx: setIdx, set: set)
-                    .onDrag {
-                        self.draggingSet = set
-                        return NSItemProvider(object: set.id.uuidString as NSString)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(setIdx < exercise.sets.count - 1 ? .visible : .hidden)
+                    .listRowBackground(
+                        bindingForSet(at: setIdx).wrappedValue.isCompleted
+                        ? Color.green.opacity(0.12)
+                        : (setIdx % 2 == 0 ? Color(.systemGray6) : Color(.systemBackground))
+                    )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            handleDeleteSet(at: setIdx)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
-                    .onDrop(of: [.text], delegate: SetDropDelegate(
-                        currentSet: set,
-                        sets: $exercise.sets,
-                        draggingSet: $draggingSet
-                    ))
-                if setIdx < exercise.sets.count - 1 {
-                    Divider()
-                        .padding(.leading, 38)
-                }
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                hapticFeedback.impactOccurred()
+                                exercise.sets[setIdx].isCompleted.toggle()
+                            }
+                        } label: {
+                            Label(exercise.sets[setIdx].isCompleted ? "Undo" : "Complete",
+                                  systemImage: exercise.sets[setIdx].isCompleted ? "arrow.uturn.backward" : "checkmark")
+                        }
+                        .tint(exercise.sets[setIdx].isCompleted ? .orange : .green)
+                    }
             }
         }
-        .background(Color(.systemGray6).opacity(0.5))
+        .listStyle(.plain)
+        .scrollDisabled(true)
+        .scrollDismissesKeyboard(.interactively)
+        .frame(height: CGFloat(exercise.sets.count * 80))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -95,13 +132,22 @@ struct ExerciseCard: View {
         )
     }
     
+    private func estimatedOneRepMax(weight: String, reps: String) -> String {
+        guard let w = Double(weight), let r = Double(reps), w > 0, r > 0 else {
+            return "-"
+        }
+        // Epley formula: 1RM = weight × (1 + reps/30)
+        let oneRM = w * (1 + r / 30.0)
+        return String(format: "%.0f", oneRM)
+    }
+
     private func setRowView(setIdx: Int, set: WorkoutSet) -> some View {
         let binding = bindingForSet(at: setIdx)
         let isDragging = draggingSet?.id == set.id
         return HStack(spacing: 12) {
             setNumberMenuBadge(setIdx: setIdx, set: set)
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     // Reps
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Reps")
@@ -127,7 +173,7 @@ struct ExerciseCard: View {
                         TextField("0", text: binding.weight)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.center)
-                            .frame(width: 80)
+                            .frame(width: 70)
                             .padding(.vertical, 6)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
@@ -135,6 +181,21 @@ struct ExerciseCard: View {
                             )
                             .foregroundColor(.primary)
                             .disabled(disabled || binding.wrappedValue.isCompleted)
+                    }
+                    // Estimated 1RM
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Est. 1RM")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text(estimatedOneRepMax(weight: binding.wrappedValue.weight, reps: binding.wrappedValue.reps))
+                            .font(.body.weight(.medium))
+                            .foregroundColor(.utOrange)
+                            .frame(width: 50)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.utOrange.opacity(0.1))
+                            )
                     }
                     Spacer()
                     // Complete toggle button
@@ -158,19 +219,7 @@ struct ExerciseCard: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
-        .background(
-            binding.wrappedValue.isCompleted
-            ? Color.green.opacity(0.12)
-            : (setIdx % 2 == 0 ? Color(.systemGray6) : Color(.systemBackground))
-        )
         .contentShape(Rectangle())
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                handleDeleteSet(at: setIdx)
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
         .opacity(isDragging ? 0.5 : 1.0)
     }
     

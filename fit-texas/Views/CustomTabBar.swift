@@ -25,7 +25,7 @@ enum TabItem: Int, CaseIterable {
     var icon: String {
         switch self {
         case .home: return "house"
-        case .explore: return "watch"
+        case .explore: return "safari"
         case .log: return "plus.circle.fill"
         case .profile: return "person"
         }
@@ -34,7 +34,7 @@ enum TabItem: Int, CaseIterable {
     var iconFilled: String {
         switch self {
         case .home: return "house.fill"
-        case .explore: return "compass.fill"
+        case .explore: return "safari.fill"
         case .log: return "plus.circle.fill"
         case .profile: return "person.fill"
         }
@@ -104,7 +104,7 @@ struct CustomTabBar: View {
     @Namespace private var animation
 
     var body: some View {
-        VStack() {
+        VStack(spacing: 0) {
             Divider()
 
             HStack(spacing: 0) {
@@ -118,8 +118,8 @@ struct CustomTabBar: View {
                 }
             }
             .padding(.top, 8)
-            .background(Color(.systemBackground))
         }
+        .background(Color(.systemBackground))
     }
 }
 

@@ -136,7 +136,7 @@ struct MuscleGroupCard: View {
         case "core", "abdominals": return "square.grid.3x3"
         case "glutes": return "figure.run"
         case "calves": return "figure.walk"
-        case "biceps": return "arm.and.dumbbell"
+        case "biceps": return "dumbbell.fill"
         case "triceps": return "figure.gymnastics"
         case "forearms": return "hand.raised.fill"
         default: return "figure.strengthtraining.traditional"

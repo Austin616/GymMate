@@ -70,7 +70,8 @@ struct ExerciseDetailView: View {
                             .font(.title2)
                             .foregroundColor(.secondary)
                     }
-                    .padding()
+                    .padding(.top, 8)
+                    .padding(.trailing, 8)
                 }
 
                 // Hero Image with alternation
@@ -121,11 +122,12 @@ struct ExerciseDetailView: View {
                     .padding(.horizontal)
                 }
 
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 20) {
                         // Exercise Name
                         Text(exercise.name)
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(.primary)
+                            .padding(.horizontal, 20)
 
                         // Info Tags
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -140,7 +142,7 @@ struct ExerciseDetailView: View {
                                     InfoTag(icon: "tag.fill", text: category, color: .purple)
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 20)
                         }
 
                         // Primary Muscles
@@ -156,7 +158,7 @@ struct ExerciseDetailView: View {
                                     }
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 20)
                         }
 
                         // Secondary Muscles
@@ -172,7 +174,7 @@ struct ExerciseDetailView: View {
                                     }
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 20)
                         }
 
                         // Instructions
@@ -202,7 +204,7 @@ struct ExerciseDetailView: View {
                                     }
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 20)
                         }
 
                         Spacer(minLength: 100)
