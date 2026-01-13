@@ -9,11 +9,16 @@ import SwiftUI
 
 struct ExerciseDetailView: View {
     let exercise: Exercise
-    let onAdd: () -> Void
+    let onAdd: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     @State private var currentImageIndex = 0
     @State private var timer: Timer?
+
+    init(exercise: Exercise, onAdd: (() -> Void)? = nil) {
+        self.exercise = exercise
+        self.onAdd = onAdd
+    }
 
     private func loadExerciseImage(at index: Int) -> UIImage? {
         guard let images = exercise.images, index < images.count else {
@@ -214,28 +219,30 @@ struct ExerciseDetailView: View {
                 }
             }
         .overlay(alignment: .bottom) {
-            // Add Button - Smaller and more subtle
-            Button(action: {
-                onAdd()
-                dismiss()
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.body)
-                    Text("Add to Workout")
-                        .font(.subheadline.weight(.semibold))
+            if let onAdd = onAdd {
+                // Add Button - Smaller and more subtle
+                Button(action: {
+                    onAdd()
+                    dismiss()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.body)
+                        Text("Add to Workout")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule()
+                            .fill(Color.utOrange)
+                            .shadow(color: Color.utOrange.opacity(0.3), radius: 8, x: 0, y: 4)
+                    )
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(
-                    Capsule()
-                        .fill(Color.utOrange)
-                        .shadow(color: Color.utOrange.opacity(0.3), radius: 8, x: 0, y: 4)
-                )
+                .buttonStyle(.plain)
+                .padding(.bottom, 24)
             }
-            .buttonStyle(.plain)
-            .padding(.bottom, 24)
         }
         .onAppear {
             startImageTimer()

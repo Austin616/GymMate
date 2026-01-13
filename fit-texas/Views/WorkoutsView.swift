@@ -26,8 +26,7 @@ struct WorkoutsView: View {
     }
 
     var body: some View {
-        NavigationView {
-            if isLogging {
+        if isLogging {
                 // Logging Mode - Show ActiveWorkoutView inline
                 ActiveWorkoutView(
                     historyManager: historyManager,
@@ -107,7 +106,6 @@ struct WorkoutsView: View {
                 }
                 .navigationBarHidden(true)
             }
-        }
     }
 }
 

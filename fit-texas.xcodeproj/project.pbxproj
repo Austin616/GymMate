@@ -65,12 +65,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		341B88A52EEB91DD0064F0DE /* Exceptions for "fit-texas" folder in "fit-texas" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-			);
-			target = 342DE8892ECD41EC0041785D /* fit-texas */;
-		};
 		34FD2A4F2EEE23D50061C637 /* Exceptions for "WorkoutWidget" folder in "WorkoutWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -91,7 +85,6 @@
 		342DE88C2ECD41EC0041785D /* fit-texas */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				341B88A52EEB91DD0064F0DE /* Exceptions for "fit-texas" folder in "fit-texas" target */,
 				34FD2A562EEE25470061C637 /* Exceptions for "fit-texas" folder in "WorkoutWidgetExtension" target */,
 			);
 			explicitFolders = (
@@ -555,6 +548,8 @@
 				DEVELOPMENT_TEAM = Q2CB6U8V47;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "We need access to your step count to track your daily activity and fitness progress.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "We may update your health data to sync your workout information.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -589,6 +584,8 @@
 				DEVELOPMENT_TEAM = Q2CB6U8V47;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "We need access to your step count to track your daily activity and fitness progress.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "We may update your health data to sync your workout information.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

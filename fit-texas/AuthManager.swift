@@ -34,9 +34,59 @@ class AuthManager: ObservableObject {
 
     func signOut() {
         do {
+            // Clear all local caches before signing out
+            clearAllLocalData()
+            
+            // Reset all singleton managers
+            resetAllManagers()
+            
             try Auth.auth().signOut()
+            print("✅ [AUTH] Signed out successfully")
         } catch {
-            print("Error signing out: \(error.localizedDescription)")
+            print("❌ [AUTH] Error signing out: \(error.localizedDescription)")
         }
+    }
+    
+    private func clearAllLocalData() {
+        // Clear UserDefaults for app-specific keys
+        let keysToRemove = [
+            "stepDailyGoal",
+            "cachedWorkouts",
+            "lastSyncDate"
+        ]
+        
+        for key in keysToRemove {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        
+        // Clear any cached data in app's document directory if needed
+        print("🧹 [AUTH] Cleared local data caches")
+    }
+    
+    private func resetAllManagers() {
+        // Force reset published properties on all managers
+        // The auth listeners in each manager will handle the full reset,
+        // but we trigger an immediate UI update here
+        
+        DispatchQueue.main.async {
+            // SocialManager will be reset by its auth listener
+            SocialManager.shared.currentUserProfile = nil
+            SocialManager.shared.friends = []
+            SocialManager.shared.pendingRequests = []
+            SocialManager.shared.hasCompletedProfileSetup = false
+            
+            // FeedManager will be reset by its auth listener
+            FeedManager.shared.feedPosts = []
+            FeedManager.shared.suggestedUsers = []
+            
+            // GamificationManager will be reset by its auth listener
+            GamificationManager.shared.totalXP = 0
+            GamificationManager.shared.currentLevel = 1
+            GamificationManager.shared.unlockedAchievements = []
+            GamificationManager.shared.activeChallenges = []
+            GamificationManager.shared.userChallenges = []
+        }
+        
+        print("🔄 [AUTH] Reset all managers")
     }
 }

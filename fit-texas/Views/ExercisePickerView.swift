@@ -16,6 +16,7 @@ struct ExercisePickerView: View {
     let onSelect: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var searchText: String = ""
     @State private var muscleGroups: [String] = []
     @State private var showFilters: Bool = false
@@ -23,6 +24,10 @@ struct ExercisePickerView: View {
     @State private var selectedLevel: Set<String> = []
     @State private var selectedCategory: Set<String> = []
     @State private var viewMode: ViewMode = .muscleGroups
+    @State private var showToast: Bool = false
+    @State private var toastMessage: String = ""
+    @State private var toastIcon: String = "checkmark.circle.fill"
+    @State private var toastColor: Color = .green
     @FocusState private var isSearchFocused: Bool
 
     var isSearching: Bool {
@@ -31,12 +36,28 @@ struct ExercisePickerView: View {
 
     var filteredExercises: [Exercise] {
         var exercises = ExerciseLoader.shared.searchExercises(query: searchText)
-        return applyFilters(to: exercises)
+        exercises = applyFilters(to: exercises)
+        return sortExercisesByFavorites(exercises)
     }
 
     var allFilteredExercises: [Exercise] {
         var exercises = ExerciseLoader.shared.getAllExercises()
-        return applyFilters(to: exercises)
+        exercises = applyFilters(to: exercises)
+        return sortExercisesByFavorites(exercises)
+    }
+
+    private func sortExercisesByFavorites(_ exercises: [Exercise]) -> [Exercise] {
+        exercises.sorted { exercise1, exercise2 in
+            let isFav1 = favoritesManager.isFavorite(exercise1.name)
+            let isFav2 = favoritesManager.isFavorite(exercise2.name)
+            if isFav1 && !isFav2 {
+                return true
+            } else if !isFav1 && isFav2 {
+                return false
+            } else {
+                return exercise1.name < exercise2.name
+            }
+        }
     }
 
 
@@ -74,19 +95,6 @@ struct ExercisePickerView: View {
         VStack(spacing: 0) {
             CustomTabHeader(
                 title: "Add Exercise",
-                leadingButton: AnyView(
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                            Text("Back")
-                        }
-                        .foregroundColor(.utOrange)
-                    }
-                ),
                 isSubScreen: true
             )
 
@@ -127,6 +135,7 @@ struct ExercisePickerView: View {
         .onAppear {
             muscleGroups = ExerciseLoader.shared.getMuscleGroups()
         }
+        .toast(isPresented: $showToast, message: toastMessage, icon: toastIcon, color: toastColor)
     }
 
     // MARK: - View Mode Toggle
@@ -359,6 +368,17 @@ struct ExercisePickerView: View {
                     List {
                         ForEach(exercises) { exercise in
                             exerciseRow(exercise)
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                    Button {
+                                        toggleFavorite(exercise.name)
+                                    } label: {
+                                        Label(
+                                            favoritesManager.isFavorite(exercise.name) ? "Unfavorite" : "Favorite",
+                                            systemImage: favoritesManager.isFavorite(exercise.name) ? "star.slash.fill" : "star.fill"
+                                        )
+                                    }
+                                    .tint(favoritesManager.isFavorite(exercise.name) ? .gray : .utOrange)
+                                }
                         }
                     }
                     .listStyle(.plain)
@@ -367,6 +387,17 @@ struct ExercisePickerView: View {
                 List {
                     ForEach(exercises) { exercise in
                         exerciseRow(exercise)
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button {
+                                    toggleFavorite(exercise.name)
+                                } label: {
+                                    Label(
+                                        favoritesManager.isFavorite(exercise.name) ? "Unfavorite" : "Favorite",
+                                        systemImage: favoritesManager.isFavorite(exercise.name) ? "star.slash.fill" : "star.fill"
+                                    )
+                                }
+                                .tint(favoritesManager.isFavorite(exercise.name) ? .gray : .utOrange)
+                            }
                     }
                 }
                 .listStyle(.plain)
@@ -374,8 +405,25 @@ struct ExercisePickerView: View {
         }
     }
 
+    private func toggleFavorite(_ exerciseName: String) {
+        let wasFavorite = favoritesManager.isFavorite(exerciseName)
+        favoritesManager.toggleFavorite(exerciseName)
+
+        // Show toast
+        toastMessage = wasFavorite ? "Removed from favorites" : "Added to favorites"
+        toastIcon = wasFavorite ? "star.slash.fill" : "star.fill"
+        toastColor = wasFavorite ? .gray : .utOrange
+        showToast = true
+
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+    }
+
     private func exerciseRow(_ exercise: Exercise) -> some View {
-        Button(action: {
+        let isFavorite = favoritesManager.isFavorite(exercise.name)
+
+        return Button(action: {
             onSelect(exercise.name)
             dismiss()
         }) {
@@ -403,14 +451,26 @@ struct ExercisePickerView: View {
 
                 Spacer()
 
+                if isFavorite {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.utOrange)
+                        .font(.caption)
+                }
+
                 Image(systemName: "plus.circle.fill")
                     .foregroundColor(.utOrange)
                     .font(.title3)
             }
             .padding(.vertical, 4)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isFavorite ? Color.utOrange : Color.clear, lineWidth: 2)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
     }
 
     // MARK: - Empty State View
@@ -588,19 +648,6 @@ struct MuscleExerciseListView: View {
         VStack(spacing: 0) {
             CustomTabHeader(
                 title: muscleGroup,
-                leadingButton: AnyView(
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                            Text("Back")
-                        }
-                        .foregroundColor(.utOrange)
-                    }
-                ),
                 isSubScreen: true
             )
 
@@ -799,6 +846,21 @@ struct ExerciseListContent: View {
     let hasActiveFilters: Bool
     let clearFilters: () -> Void
     let onSelect: (String) -> Void
+    @StateObject private var favoritesManager = FavoritesManager.shared
+
+    private var sortedExercises: [Exercise] {
+        exercises.sorted { exercise1, exercise2 in
+            let isFav1 = favoritesManager.isFavorite(exercise1.name)
+            let isFav2 = favoritesManager.isFavorite(exercise2.name)
+            if isFav1 && !isFav2 {
+                return true
+            } else if !isFav1 && isFav2 {
+                return false
+            } else {
+                return exercise1.name < exercise2.name
+            }
+        }
+    }
 
     var body: some View {
         Group {
@@ -814,21 +876,51 @@ struct ExerciseListContent: View {
                         clearFilters: clearFilters
                     )
                     List {
-                        ForEach(exercises) { exercise in
+                        ForEach(sortedExercises) { exercise in
                             ExerciseRowButton(exercise: exercise, onSelect: onSelect)
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                    Button {
+                                        toggleFavorite(exercise.name)
+                                    } label: {
+                                        Label(
+                                            favoritesManager.isFavorite(exercise.name) ? "Unfavorite" : "Favorite",
+                                            systemImage: favoritesManager.isFavorite(exercise.name) ? "star.slash.fill" : "star.fill"
+                                        )
+                                    }
+                                    .tint(favoritesManager.isFavorite(exercise.name) ? .gray : .utOrange)
+                                }
                         }
                     }
                     .listStyle(.plain)
                 }
             } else {
                 List {
-                    ForEach(exercises) { exercise in
+                    ForEach(sortedExercises) { exercise in
                         ExerciseRowButton(exercise: exercise, onSelect: onSelect)
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button {
+                                    toggleFavorite(exercise.name)
+                                } label: {
+                                    Label(
+                                        favoritesManager.isFavorite(exercise.name) ? "Unfavorite" : "Favorite",
+                                        systemImage: favoritesManager.isFavorite(exercise.name) ? "star.slash.fill" : "star.fill"
+                                    )
+                                }
+                                .tint(favoritesManager.isFavorite(exercise.name) ? .gray : .utOrange)
+                            }
                     }
                 }
                 .listStyle(.plain)
             }
         }
+    }
+
+    private func toggleFavorite(_ exerciseName: String) {
+        favoritesManager.toggleFavorite(exerciseName)
+
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
     }
 }
 
@@ -836,8 +928,11 @@ struct ExerciseRowButton: View {
     let exercise: Exercise
     let onSelect: (String) -> Void
     @State private var showDetail = false
+    @StateObject private var favoritesManager = FavoritesManager.shared
 
     var body: some View {
+        let isFavorite = favoritesManager.isFavorite(exercise.name)
+
         HStack(spacing: 12) {
             // Main row - tappable to show detail
             Button(action: {
@@ -866,6 +961,12 @@ struct ExerciseRowButton: View {
                     }
 
                     Spacer()
+
+                    if isFavorite {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.utOrange)
+                            .font(.caption)
+                    }
                 }
                 .contentShape(Rectangle())
             }
@@ -882,6 +983,12 @@ struct ExerciseRowButton: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isFavorite ? Color.utOrange : Color.clear, lineWidth: 2)
+        )
+        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
         .sheet(isPresented: $showDetail) {
             ExerciseDetailView(
                 exercise: exercise,

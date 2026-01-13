@@ -66,7 +66,7 @@ struct ExerciseCard: View {
         .padding(.bottom, 2)
         .sheet(isPresented: $showingExerciseDetail) {
             if let exerciseData = exerciseFromWorkoutExercise {
-                ExerciseDetailView(exercise: exerciseData, onAdd: {})
+                ExerciseDetailView(exercise: exerciseData)
             }
         }
     }

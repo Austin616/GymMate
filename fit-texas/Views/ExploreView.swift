@@ -22,8 +22,7 @@ struct ExploreView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 24) {
                     // Header
                     CustomTabHeader(title: "Explore Exercises")
@@ -113,10 +112,9 @@ struct ExploreView: View {
                 }
                 .padding(.top, 8)
             }
-            .navigationBarHidden(true)
-        }
+        .navigationBarHidden(true)
         .sheet(item: $showingExerciseDetail) { exercise in
-            ExerciseDetailView(exercise: exercise, onAdd: {})
+            ExerciseDetailView(exercise: exercise)
         }
     }
 }
@@ -337,7 +335,7 @@ struct MuscleGroupExercisesView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $showingExerciseDetail) { exercise in
-            ExerciseDetailView(exercise: exercise, onAdd: {})
+            ExerciseDetailView(exercise: exercise)
         }
     }
 }

@@ -242,6 +242,7 @@ struct ActiveWorkoutView: View {
     @ObservedObject var historyManager: WorkoutHistoryManager
     @EnvironmentObject var timerManager: WorkoutTimerManager
     @ObservedObject private var settingsManager = SettingsManager.shared
+    @StateObject private var gamificationManager = GamificationManager.shared
     let templateWorkout: SavedWorkout?
     var onFinish: (() -> Void)? = nil
     var onCancel: (() -> Void)? = nil
@@ -257,6 +258,9 @@ struct ActiveWorkoutView: View {
     @State private var showExerciseAddedAlert: Bool = false
     @State private var lastAddedExerciseName: String = ""
     @State private var showValidationAlert: Bool = false
+    @State private var showSharePrompt: Bool = false
+    @State private var savedWorkout: SavedWorkout?
+    @State private var workoutDuration: TimeInterval?
 
     var totalVolume: Double {
         exercises.reduce(0.0) { total, exercise in
@@ -408,7 +412,6 @@ struct ActiveWorkoutView: View {
                 VStack(spacing: 0) {
                         VStack(spacing: 12) {
                             HStack(spacing: 8) {
-                                StatCard(title: "Duration", value: elapsedTime, icon: "clock.fill")
                                 StatCard(title: "Sets", value: "\(totalSets)", icon: "number.circle.fill")
                                 StatCard(title: "Exercises", value: "\(exercises.count)", icon: "figure.strengthtraining.traditional")
                             }
@@ -569,6 +572,23 @@ struct ActiveWorkoutView: View {
                     saveDraft()
                 }
             }
+            .shareWorkoutPrompt(
+                isPresented: $showSharePrompt,
+                workout: savedWorkout,
+                duration: workoutDuration,
+                onShare: { caption, editedDuration in
+                    if let workout = savedWorkout {
+                        try? await FeedManager.shared.shareWorkout(workout, caption: caption, duration: editedDuration)
+                        
+                        // Award XP for sharing
+                        await GamificationManager.shared.checkSocialAchievements(postsShared: 1)
+                    }
+                    dismissAndFinish()
+                },
+                onSkip: {
+                    dismissAndFinish()
+                }
+            )
         }
         .navigationViewStyle(.stack)
     }
@@ -667,6 +687,11 @@ struct ActiveWorkoutView: View {
             exercises: exercises
         )
 
+        // Calculate workout duration
+        if let startTime = timerManager.workoutStartTime {
+            workoutDuration = Date().timeIntervalSince(startTime)
+        }
+
         // Stop timer and clear Live Activity immediately
         timerManager.stopWorkout()
 
@@ -675,9 +700,54 @@ struct ActiveWorkoutView: View {
 
         // Save workout to history
         historyManager.saveWorkout(workout)
+        
+        // Store for share prompt
+        savedWorkout = workout
 
         isSaving = false
-
+        
+        // Process gamification
+        let workoutCount = historyManager.savedWorkouts.count + 1
+        let streakDays = calculateStreak()
+        
+        Task {
+            await gamificationManager.processWorkoutCompletion(
+                exerciseCount: workout.exercises.count,
+                setCount: workout.totalSets,
+                totalVolume: workout.totalVolume,
+                workoutCount: workoutCount,
+                streakDays: streakDays
+            )
+        }
+        
+        // Show share prompt
+        showSharePrompt = true
+    }
+    
+    private func calculateStreak() -> Int {
+        let workouts = historyManager.savedWorkouts.sorted { $0.date > $1.date }
+        guard !workouts.isEmpty else { return 1 }
+        
+        var streak = 1  // Count today's workout
+        var currentDate = Calendar.current.startOfDay(for: Date())
+        
+        for workout in workouts {
+            let workoutDate = Calendar.current.startOfDay(for: workout.date)
+            
+            // Check if this workout is from a consecutive day
+            if let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: currentDate),
+               Calendar.current.isDate(workoutDate, inSameDayAs: previousDay) {
+                streak += 1
+                currentDate = previousDay
+            } else if !Calendar.current.isDate(workoutDate, inSameDayAs: currentDate) {
+                break
+            }
+        }
+        
+        return streak
+    }
+    
+    private func dismissAndFinish() {
         if let onFinish = onFinish {
             onFinish()
         } else {

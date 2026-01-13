@@ -10,13 +10,15 @@ import SwiftUI
 enum TabItem: Int, CaseIterable {
     case home = 0
     case explore = 1
-    case log = 2
-    case profile = 3
+    case social = 2
+    case log = 3
+    case profile = 4
 
     var title: String {
         switch self {
         case .home: return "Home"
         case .explore: return "Explore"
+        case .social: return "Feed"
         case .log: return "Log"
         case .profile: return "Profile"
         }
@@ -26,6 +28,7 @@ enum TabItem: Int, CaseIterable {
         switch self {
         case .home: return "house"
         case .explore: return "safari"
+        case .social: return "bubble.left.and.bubble.right"
         case .log: return "plus.circle.fill"
         case .profile: return "person"
         }
@@ -35,6 +38,7 @@ enum TabItem: Int, CaseIterable {
         switch self {
         case .home: return "house.fill"
         case .explore: return "safari.fill"
+        case .social: return "bubble.left.and.bubble.right.fill"
         case .log: return "plus.circle.fill"
         case .profile: return "person.fill"
         }
@@ -48,28 +52,31 @@ struct CustomTabBarView: View {
     @ObservedObject private var historyManager = WorkoutHistoryManager.shared
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Main content
-            Group {
-                switch selectedTab {
-                case .home:
-                    HomeView()
-                case .explore:
-                    ExploreView()
-                case .log:
-                    WorkoutsView()
-                case .profile:
-                    ProfileView()
+        NavigationStack {
+            ZStack(alignment: .bottom) {
+                // Main content
+                Group {
+                    switch selectedTab {
+                    case .home:
+                        HomeView()
+                    case .explore:
+                        ExploreView()
+                    case .social:
+                        FeedView()
+                    case .log:
+                        WorkoutsView()
+                    case .profile:
+                        ProfileView()
+                    }
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .environmentObject(historyManager)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .environmentObject(historyManager)
 
             VStack(spacing: 0) {
                 Spacer()
 
-                // Workout Preview Card (hide on Log and Explore tabs)
-                if historyManager.hasDraft && selectedTab != .log && selectedTab != .explore {
+                // Workout Preview Card (hide on Log, Explore, and Social tabs)
+                if historyManager.hasDraft && selectedTab != .log && selectedTab != .explore && selectedTab != .social {
                     ActiveWorkoutPreview(
                         historyManager: historyManager,
                         timerManager: timerManager,
@@ -93,8 +100,9 @@ struct CustomTabBarView: View {
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: historyManager.hasDraft)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedTab)
+            }
+            .ignoresSafeArea(.keyboard)
         }
-        .ignoresSafeArea(.keyboard)
     }
 }
 
@@ -128,9 +136,14 @@ struct TabBarButton: View {
     @Binding var selectedTab: TabItem
     var animation: Namespace.ID
     let hasActiveWorkout: Bool
+    @ObservedObject private var socialManager = SocialManager.shared
 
     private var isSelected: Bool {
         selectedTab == tab
+    }
+    
+    private var pendingRequestCount: Int {
+        socialManager.pendingRequests.count
     }
 
     var body: some View {
@@ -151,6 +164,18 @@ struct TabBarButton: View {
                             .fill(Color.green)
                             .frame(width: 10, height: 10)
                             .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .offset(x: 8, y: -8)
+                    }
+                    
+                    if tab == .social && pendingRequestCount > 0 {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 16, height: 16)
+                            .overlay(
+                                Text("\(min(pendingRequestCount, 9))")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.white)
+                            )
                             .offset(x: 8, y: -8)
                     }
                 }

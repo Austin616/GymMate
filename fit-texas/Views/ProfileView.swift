@@ -12,13 +12,17 @@ struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
     @ObservedObject private var historyManager = WorkoutHistoryManager.shared
     @StateObject private var statsManager = StatsManager()
+    @StateObject private var socialManager = SocialManager.shared
+    @StateObject private var gamificationManager = GamificationManager.shared
     @State private var showSettings = false
     @State private var selectedDate = Date()
     @State private var statsLoaded = false
+    @State private var showAchievements = false
+    @State private var showChallenges = false
+    @State private var showLeaderboard = false
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
                 CustomTabHeader(
                     title: "Profile",
                     trailingButton: AnyView(
@@ -34,33 +38,64 @@ struct ProfileView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Profile Header
+                        // Profile Header with Level
                         VStack(spacing: 12) {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.utOrange, Color.utOrange.opacity(0.7)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
+                            ZStack(alignment: .bottomTrailing) {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.utOrange, Color.utOrange.opacity(0.7)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
                                     )
-                                )
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    Text((authManager.currentUser?.email?.prefix(1).uppercased()) ?? "U")
-                                        .font(.system(size: 40, weight: .bold))
+                                    .frame(width: 100, height: 100)
+                                    .overlay(
+                                        Text((socialManager.currentUserProfile?.displayName.prefix(1).uppercased()) ?? (authManager.currentUser?.email?.prefix(1).uppercased()) ?? "U")
+                                            .font(.system(size: 40, weight: .bold))
+                                            .foregroundColor(.white)
+                                    )
+                                    .shadow(color: Color.utOrange.opacity(0.3), radius: 12, x: 0, y: 4)
+                                
+                                // Level Badge
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(.systemBackground))
+                                        .frame(width: 36, height: 36)
+                                    
+                                    Circle()
+                                        .fill(Color.utOrange)
+                                        .frame(width: 30, height: 30)
+                                    
+                                    Text("\(gamificationManager.currentLevel)")
+                                        .font(.system(size: 14, weight: .bold))
                                         .foregroundColor(.white)
-                                )
-                                .shadow(color: Color.utOrange.opacity(0.3), radius: 12, x: 0, y: 4)
+                                }
+                                .offset(x: 4, y: 4)
+                            }
 
                             VStack(spacing: 4) {
-                                Text(authManager.currentUser?.displayName ?? "User")
+                                Text(socialManager.currentUserProfile?.displayName ?? authManager.currentUser?.displayName ?? "User")
                                     .font(.title2)
                                     .fontWeight(.bold)
-
-                                Text(authManager.currentUser?.email ?? "user@example.com")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                
+                                if let username = socialManager.currentUserProfile?.username {
+                                    Text("@\(username)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text(authManager.currentUser?.email ?? "user@example.com")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
                             }
+                            
+                            // Level & XP Progress
+                            XPProgressCard(
+                                level: gamificationManager.currentLevel,
+                                totalXP: gamificationManager.totalXP
+                            )
+                            .padding(.horizontal)
                         }
                         .padding(.top, 20)
 
@@ -78,6 +113,73 @@ struct ProfileView: View {
                         .padding(.horizontal, 8)
                     }
 
+                    // Gamification Quick Links
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Progress")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        HStack(spacing: 12) {
+                            GamificationLinkCard(
+                                title: "Achievements",
+                                value: "\(gamificationManager.unlockedAchievements.count)/\(PredefinedAchievements.all.count)",
+                                icon: "trophy.fill",
+                                color: .yellow
+                            ) {
+                                showAchievements = true
+                            }
+                            
+                            GamificationLinkCard(
+                                title: "Challenges",
+                                value: "\(gamificationManager.activeChallenges.count) active",
+                                icon: "target",
+                                color: .green
+                            ) {
+                                showChallenges = true
+                            }
+                            
+                            GamificationLinkCard(
+                                title: "Leaderboard",
+                                value: "\(socialManager.friends.count) friends",
+                                icon: "chart.bar.fill",
+                                color: .blue
+                            ) {
+                                showLeaderboard = true
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Recent Achievements
+                    if !gamificationManager.unlockedAchievements.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Recent Achievements")
+                                    .font(.headline)
+                                
+                                Spacer()
+                                
+                                Button("See All") {
+                                    showAchievements = true
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.utOrange)
+                            }
+                            .padding(.horizontal)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(gamificationManager.unlockedAchievements.suffix(5).reversed()) { userAchievement in
+                                        if let achievement = PredefinedAchievements.achievement(byId: userAchievement.achievementId) {
+                                            RecentAchievementBadge(achievement: achievement)
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                    }
+                    
                     // Stats Cards
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Stats")
@@ -103,8 +205,19 @@ struct ProfileView: View {
             }
             .navigationBarHidden(true)
             .background(
-                NavigationLink(destination: SettingsView().environmentObject(authManager), isActive: $showSettings) {
-                    EmptyView()
+                Group {
+                    NavigationLink(destination: SettingsView().environmentObject(authManager), isActive: $showSettings) {
+                        EmptyView()
+                    }
+                    NavigationLink(destination: AchievementsView(), isActive: $showAchievements) {
+                        EmptyView()
+                    }
+                    NavigationLink(destination: ChallengesView(), isActive: $showChallenges) {
+                        EmptyView()
+                    }
+                    NavigationLink(destination: LeaderboardView(), isActive: $showLeaderboard) {
+                        EmptyView()
+                    }
                 }
                 .hidden()
             )
@@ -119,7 +232,6 @@ struct ProfileView: View {
                 print("📊 [PROFILE] Workouts changed, recalculating stats...")
                 statsManager.calculateStats(from: newWorkouts)
             }
-        }
     }
 }
 
@@ -622,6 +734,137 @@ struct StatItemCompact: View {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - XP Progress Card
+
+struct XPProgressCard: View {
+    let level: Int
+    let totalXP: Int
+    
+    private var levelProgress: (current: Int, required: Int, percentage: Double) {
+        LevelSystem.xpProgressInLevel(totalXP)
+    }
+    
+    private var levelTitle: String {
+        LevelSystem.levelTitle(for: level)
+    }
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Level \(level)")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                    
+                    Text(levelTitle)
+                        .font(.caption)
+                        .foregroundColor(.utOrange)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(totalXP) XP")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    
+                    Text("\(levelProgress.current)/\(levelProgress.required) to next")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Progress Bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 8)
+                    
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [.utOrange, .orange],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geometry.size.width * levelProgress.percentage, height: 8)
+                }
+            }
+            .frame(height: 8)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemGray6))
+        )
+    }
+}
+
+// MARK: - Gamification Link Card
+
+struct GamificationLinkCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(color)
+                
+                Text(value)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                
+                Text(title)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Recent Achievement Badge
+
+struct RecentAchievementBadge: View {
+    let achievement: Achievement
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(Color.utOrange)
+                    .frame(width: 50, height: 50)
+                
+                Image(systemName: achievement.iconName)
+                    .font(.title3)
+                    .foregroundColor(.white)
+            }
+            
+            Text(achievement.name)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(width: 70)
+        }
     }
 }
 
