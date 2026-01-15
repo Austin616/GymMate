@@ -41,9 +41,13 @@ class FeedManager: ObservableObject {
                 self?.setupCampusFeedListener()
                 self?.loadSuggestedUsers()
             } else {
+                // Remove listener and clear data on sign out
+                print("🧹 [FEED] Removing feed listener")
+                self?.feedListener?.remove()
+                self?.feedListener = nil
                 self?.feedPosts = []
                 self?.suggestedUsers = []
-                self?.feedListener?.remove()
+                self?.lastDocument = nil
             }
         }
     }
@@ -249,9 +253,29 @@ class FeedManager: ObservableObject {
     
     // MARK: - Like/Unlike
     
+    /// Check if current user has liked a post
+    func hasLikedPost(_ postId: String) async -> Bool {
+        guard let userId = Auth.auth().currentUser?.uid else { return false }
+        
+        do {
+            let doc = try await db.collection("feed").document(postId)
+                .collection("likes").document(userId).getDocument()
+            return doc.exists
+        } catch {
+            return false
+        }
+    }
+    
     func likePost(_ postId: String) async throws {
         guard let userId = Auth.auth().currentUser?.uid else {
             throw FeedError.notAuthenticated
+        }
+        
+        // Check if already liked
+        let alreadyLiked = await hasLikedPost(postId)
+        if alreadyLiked {
+            print("⚠️ [FEED] Post already liked")
+            return
         }
         
         print("🔵 [FEED] Liking post: \(postId)")
@@ -286,6 +310,13 @@ class FeedManager: ObservableObject {
             throw FeedError.notAuthenticated
         }
         
+        // Check if actually liked
+        let isLiked = await hasLikedPost(postId)
+        if !isLiked {
+            print("⚠️ [FEED] Post not liked, cannot unlike")
+            return
+        }
+        
         print("🔵 [FEED] Unliking post: \(postId)")
         
         let batch = db.batch()
@@ -312,12 +343,13 @@ class FeedManager: ObservableObject {
     }
     
     func toggleLike(for postId: String) async throws {
-        if let post = feedPosts.first(where: { $0.id == postId }) {
-            if post.isLikedByCurrentUser {
-                try await unlikePost(postId)
-            } else {
-                try await likePost(postId)
-            }
+        // Check actual like status from Firestore
+        let isLiked = await hasLikedPost(postId)
+        
+        if isLiked {
+            try await unlikePost(postId)
+        } else {
+            try await likePost(postId)
         }
     }
     

@@ -630,12 +630,16 @@ struct StatItem: View {
 struct WorkoutDetailView: View {
     let workout: SavedWorkout
     @ObservedObject private var historyManager = WorkoutHistoryManager.shared
+    @StateObject private var feedManager = FeedManager.shared
     @Environment(\.presentationMode) var presentationMode
 
     @State private var workoutName: String
     @State private var exercises: [WorkoutExercise]
     @State private var showDeleteConfirmation = false
     @State private var hasChanges = false
+    @State private var showShareSheet = false
+    @State private var isSharing = false
+    @State private var showShareSuccess = false
 
     init(workout: SavedWorkout) {
         self.workout = workout
@@ -665,57 +669,23 @@ struct WorkoutDetailView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Custom header
-            HStack(alignment: .center) {
-                Button(action: {
-                    if hasChanges {
-                        saveChanges()
-                    }
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.body)
-                            .fontWeight(.semibold)
-                        Text("Back")
-                    }
-                    .foregroundColor(.utOrange)
-                }
-
-                Spacer()
-
-                Button(action: {
-                    historyManager.toggleFavorite(workout)
-                }) {
-                    Image(systemName: workout.isFavorite ? "star.fill" : "star")
-                        .foregroundColor(.utOrange)
-                        .font(.title2)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-            .background(Color(.systemBackground))
-
-            // Editable Workout Title
-            VStack(alignment: .leading, spacing: 4) {
-                TextField("Workout Name", text: $workoutName)
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(.primary)
-                    .onChange(of: workoutName) { _ in hasChanges = true }
-
-                Text(dateString)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
-            .background(Color(.systemBackground))
-
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 16) {
+                    // Workout Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Workout Name", text: $workoutName)
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.primary)
+                            .onChange(of: workoutName) { _ in hasChanges = true }
+
+                        Text(dateString)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.top, 12)
+                    
                     // Stats
                     HStack(spacing: 12) {
                         StatCardSmall(title: "Exercises", value: "\(exercises.count)", icon: "figure.strengthtraining.traditional")
@@ -723,7 +693,6 @@ struct WorkoutDetailView: View {
                         StatCardSmall(title: "Volume", value: "\(Int(totalVolume)) kg", icon: "scalemass")
                     }
                     .padding(.horizontal)
-                    .padding(.top, 12)
 
                     // Exercises
                     VStack(spacing: 12) {
@@ -766,6 +735,23 @@ struct WorkoutDetailView: View {
                     }
                     .padding(.horizontal, 8)
 
+                    // Share Button
+                    Button(action: {
+                        showShareSheet = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("Share Workout")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.utOrange)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    
                     // Delete Button
                     Button(action: {
                         showDeleteConfirmation = true
@@ -785,8 +771,47 @@ struct WorkoutDetailView: View {
                     .padding(.bottom, 20)
                 }
             }
+        .navigationTitle("Workout Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 16) {
+                    Button(action: {
+                        showShareSheet = true
+                    }) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(.utOrange)
+                    }
+                    
+                    Button(action: {
+                        historyManager.toggleFavorite(workout)
+                    }) {
+                        Image(systemName: workout.isFavorite ? "star.fill" : "star")
+                            .foregroundColor(.utOrange)
+                    }
+                }
+            }
         }
-        .navigationBarHidden(true)
+        .sheet(isPresented: $showShareSheet) {
+            ShareWorkoutFromDetailSheet(
+                workout: workout,
+                exercises: exercises,
+                workoutName: workoutName,
+                onShare: { caption in
+                    shareWorkout(caption: caption)
+                }
+            )
+        }
+        .alert("Shared!", isPresented: $showShareSuccess) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Your workout has been shared to your feed.")
+        }
+        .onDisappear {
+            if hasChanges {
+                saveChanges()
+            }
+        }
         .alert("Delete Workout?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -838,6 +863,171 @@ struct WorkoutDetailView: View {
     func deleteWorkout() {
         historyManager.deleteWorkout(workout)
         presentationMode.wrappedValue.dismiss()
+    }
+    
+    func shareWorkout(caption: String) {
+        isSharing = true
+        
+        // Create a SavedWorkout with current edits
+        let workoutToShare = SavedWorkout(
+            id: workout.id,
+            name: workoutName.isEmpty ? "Workout" : workoutName,
+            date: workout.date,
+            exercises: exercises,
+            isFavorite: workout.isFavorite
+        )
+        
+        Task {
+            do {
+                try await feedManager.shareWorkout(workoutToShare, caption: caption, duration: nil)
+                await MainActor.run {
+                    isSharing = false
+                    showShareSuccess = true
+                }
+            } catch {
+                print("Error sharing workout: \(error)")
+                await MainActor.run {
+                    isSharing = false
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Share Workout From Detail Sheet
+
+struct ShareWorkoutFromDetailSheet: View {
+    let workout: SavedWorkout
+    let exercises: [WorkoutExercise]
+    let workoutName: String
+    let onShare: (String) -> Void
+    
+    @Environment(\.dismiss) private var dismiss
+    @State private var caption: String = ""
+    
+    private var totalVolume: Double {
+        exercises.reduce(0.0) { total, exercise in
+            total + exercise.sets.reduce(0.0) { setTotal, set in
+                let weight = Double(set.weight) ?? 0.0
+                let reps = Double(set.reps) ?? 0.0
+                return setTotal + (weight * reps)
+            }
+        }
+    }
+    
+    private var totalSets: Int {
+        exercises.reduce(0) { $0 + $1.sets.count }
+    }
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Workout Preview
+                    VStack(spacing: 12) {
+                        Text(workoutName)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        HStack(spacing: 20) {
+                            VStack {
+                                Text("\(exercises.count)")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                Text("Exercises")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            VStack {
+                                Text("\(totalSets)")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                Text("Sets")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            VStack {
+                                Text("\(Int(totalVolume))")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                Text("kg Volume")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    }
+                    .padding()
+                    
+                    // Exercises Preview
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Exercises")
+                            .font(.headline)
+                        
+                        ForEach(exercises.prefix(5)) { exercise in
+                            HStack {
+                                Text(exercise.name)
+                                    .font(.subheadline)
+                                Spacer()
+                                Text("\(exercise.sets.count) sets")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        
+                        if exercises.count > 5 {
+                            Text("+ \(exercises.count - 5) more exercises")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                    
+                    // Caption Input
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Caption")
+                            .font(.headline)
+                        
+                        TextEditor(text: $caption)
+                            .frame(height: 100)
+                            .padding(8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                        
+                        Text("Share your thoughts about this workout")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.vertical)
+            }
+            .navigationTitle("Share Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Share") {
+                        onShare(caption)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
     }
 }
 

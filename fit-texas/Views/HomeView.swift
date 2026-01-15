@@ -241,38 +241,49 @@ struct HomeView: View {
                             .padding(.horizontal, 20)
                         }
                         
-                        // Last Workout Card
+                        // Last Workout Card - Clickable
                         if let lastWorkout = lastWorkout {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Label("Last Workout", systemImage: "clock.fill")
-                                    .font(.headline)
-                                    .foregroundColor(.utOrange)
-
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(lastWorkout.name)
-                                        .font(.title3.weight(.semibold))
-                                        .foregroundColor(.primary)
-
-                                    HStack(spacing: 16) {
-                                        Label("\(lastWorkout.exercises.count) exercises", systemImage: "figure.strengthtraining.traditional")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-
-                                        Label("\(lastWorkout.totalSets) sets", systemImage: "number.circle.fill")
-                                            .font(.subheadline)
+                            NavigationLink(destination: WorkoutDetailView(workout: lastWorkout)) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Label("Last Workout", systemImage: "clock.fill")
+                                            .font(.headline)
+                                            .foregroundColor(.utOrange)
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
 
-                                    Text(timeAgo(from: lastWorkout.date))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .padding(.top, 4)
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(lastWorkout.name)
+                                            .font(.title3.weight(.semibold))
+                                            .foregroundColor(.primary)
+
+                                        HStack(spacing: 16) {
+                                            Label("\(lastWorkout.exercises.count) exercises", systemImage: "figure.strengthtraining.traditional")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+
+                                            Label("\(lastWorkout.totalSets) sets", systemImage: "number.circle.fill")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                        }
+
+                                        Text(timeAgo(from: lastWorkout.date))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .padding(.top, 4)
+                                    }
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(20)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(20)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(20)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(20)
+                            .buttonStyle(.plain)
                             .padding(.horizontal, 20)
                         }
 

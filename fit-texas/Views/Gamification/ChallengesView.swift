@@ -12,24 +12,7 @@ struct ChallengesView: View {
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            CustomTabHeader(
-                title: "Challenges",
-                leadingButton: AnyView(
-                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                            Text("Back")
-                        }
-                        .foregroundColor(.utOrange)
-                    }
-                ),
-                isSubScreen: true
-            )
-            
+        Group {
             if gamificationManager.activeChallenges.isEmpty {
                 // Empty State
                 VStack(spacing: 16) {
@@ -60,7 +43,8 @@ struct ChallengesView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .navigationTitle("Challenges")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

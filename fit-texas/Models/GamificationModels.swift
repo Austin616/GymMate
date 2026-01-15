@@ -174,14 +174,16 @@ struct UserChallenge: Codable, Identifiable {
 // MARK: - XP Level System
 
 struct LevelSystem {
-    // Level thresholds: Level 1 = 0, Level 2 = 400, Level 3 = 900, etc.
-    // Formula: level² × 100
+    // Level thresholds: Level 1 = 0, Level 2 = 100, Level 3 = 300, Level 4 = 600, etc.
+    // Formula: (level-1)² × 100 so Level 1 starts at 0 XP
     
     static func xpForLevel(_ level: Int) -> Int {
-        return level * level * 100
+        guard level > 0 else { return 0 }
+        return (level - 1) * (level - 1) * 100
     }
     
     static func levelFromXP(_ xp: Int) -> Int {
+        guard xp > 0 else { return 1 }
         var level = 1
         while xpForLevel(level + 1) <= xp {
             level += 1
@@ -194,9 +196,9 @@ struct LevelSystem {
         let currentLevelXP = xpForLevel(currentLevel)
         let nextLevelXP = xpForLevel(currentLevel + 1)
         
-        let xpIntoLevel = xp - currentLevelXP
+        let xpIntoLevel = max(0, xp - currentLevelXP)
         let xpNeededForNext = nextLevelXP - currentLevelXP
-        let percentage = Double(xpIntoLevel) / Double(xpNeededForNext)
+        let percentage = xpNeededForNext > 0 ? Double(xpIntoLevel) / Double(xpNeededForNext) : 0
         
         return (xpIntoLevel, xpNeededForNext, percentage)
     }

@@ -93,11 +93,6 @@ struct ExercisePickerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            CustomTabHeader(
-                title: "Add Exercise",
-                isSubScreen: true
-            )
-
             // Search Bar
             searchBar
 
@@ -126,7 +121,8 @@ struct ExercisePickerView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .navigationTitle("Add Exercise")
+        .navigationBarTitleDisplayMode(.inline)
         .onChange(of: viewMode) { _ in
             if showFilters {
                 showFilters = false
@@ -646,11 +642,6 @@ struct MuscleExerciseListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            CustomTabHeader(
-                title: muscleGroup,
-                isSubScreen: true
-            )
-
             // Search Bar
             ExerciseSearchBar(
                 searchText: $searchText,
@@ -684,7 +675,8 @@ struct MuscleExerciseListView: View {
             )
         }
         .animation(.default, value: showFilters)
-        .navigationBarHidden(true)
+        .navigationTitle(muscleGroup.capitalized)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

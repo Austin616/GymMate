@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct UserProfileView: View {
     let userId: String
@@ -16,32 +17,34 @@ struct UserProfileView: View {
     @State private var userProfile: UserProfile?
     @State private var userPosts: [FeedPost] = []
     @State private var isLoading = true
-    @State private var friendshipStatus: FriendshipStatus?
+    @State private var isFollowing = false
+    @State private var isFollowedBy = false
+    @State private var hasRequestedFollow = false
     @State private var isPerformingAction = false
+    @State private var selectedTab = 0
+    @State private var showFollowers = false
+    @State private var showFollowing = false
     
-    private var isFriend: Bool {
-        socialManager.friends.contains { $0.id == userId }
+    private var isOwnProfile: Bool {
+        userId == Auth.auth().currentUser?.uid
     }
     
+    private var isPrivateProfile: Bool {
+        !(userProfile?.isPublic ?? true)
+    }
+    
+    private var areFriends: Bool {
+        isFollowing && isFollowedBy
+    }
+    
+    private let gridColumns = [
+        GridItem(.flexible(), spacing: 2),
+        GridItem(.flexible(), spacing: 2),
+        GridItem(.flexible(), spacing: 2)
+    ]
+    
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            CustomTabHeader(
-                title: userProfile?.displayName ?? "Profile",
-                leadingButton: AnyView(
-                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                            Text("Back")
-                        }
-                        .foregroundColor(.utOrange)
-                    }
-                ),
-                isSubScreen: true
-            )
-            
+        Group {
             if isLoading {
                 VStack {
                     Spacer()
@@ -50,120 +53,37 @@ struct UserProfileView: View {
                 }
             } else if let profile = userProfile {
                 ScrollView {
-                    VStack(spacing: 24) {
+                    VStack(spacing: 0) {
                         // Profile Header
-                        VStack(spacing: 16) {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.utOrange, Color.utOrange.opacity(0.7)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    Text(String(profile.displayName.prefix(1)).uppercased())
-                                        .font(.system(size: 40, weight: .bold))
-                                        .foregroundColor(.white)
-                                )
-                                .shadow(color: Color.utOrange.opacity(0.3), radius: 12, x: 0, y: 4)
-                            
-                            VStack(spacing: 4) {
-                                Text(profile.displayName)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                
-                                Text("@\(profile.username)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                
-                                if !profile.bio.isEmpty {
-                                    Text(profile.bio)
-                                        .font(.body)
-                                        .foregroundColor(.secondary)
-                                        .multilineTextAlignment(.center)
-                                        .padding(.top, 4)
-                                }
-                            }
-                            
-                            // Level Badge
-                            HStack(spacing: 8) {
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(.utOrange)
-                                Text("Level \(profile.level)")
-                                    .fontWeight(.semibold)
-                                Text("•")
-                                    .foregroundColor(.secondary)
-                                Text(LevelSystem.levelTitle(for: profile.level))
-                                    .foregroundColor(.secondary)
-                            }
-                            .font(.subheadline)
-                            
-                            // Action Button
-                            friendActionButton
-                        }
-                        .padding(.top, 20)
+                        profileHeader(profile: profile)
                         
-                        // Stats Grid
-                        VStack(spacing: 12) {
-                            HStack(spacing: 0) {
-                                ProfileStatItem(value: "\(profile.totalWorkouts)", label: "Workouts")
-                                
-                                Divider()
-                                    .frame(height: 40)
-                                
-                                ProfileStatItem(value: "\(profile.currentStreak)", label: "Day Streak")
-                                
-                                Divider()
-                                    .frame(height: 40)
-                                
-                                ProfileStatItem(value: "\(profile.totalXP)", label: "Total XP")
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(16)
-                        }
-                        .padding(.horizontal)
+                        // Stats Row
+                        statsRow(profile: profile)
+                            .padding(.top, 16)
                         
-                        // Recent Activity
-                        if profile.isPublic || isFriend {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Recent Activity")
-                                    .font(.headline)
-                                    .padding(.horizontal)
-                                
-                                if userPosts.isEmpty {
-                                    Text("No shared workouts yet")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 40)
-                                } else {
-                                    ForEach(userPosts.prefix(5)) { post in
-                                        NavigationLink(destination: PostDetailView(post: post)) {
-                                            UserActivityCard(post: post)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
+                        // Bio Section
+                        bioSection(profile: profile)
+                            .padding(.top, 12)
+                        
+                        // Action Button
+                        actionButton(profile: profile)
+                            .padding(.top, 16)
+                            .padding(.horizontal)
+                        
+                        // Currently Working Out
+                        if profile.isCurrentlyWorkingOut {
+                            workingOutBanner(profile: profile)
+                                .padding(.top, 16)
+                                .padding(.horizontal)
+                        }
+                        
+                        // Content Tabs
+                        contentTabs
+                            .padding(.top, 20)
+                        
+                        // Content
+                        contentView(profile: profile)
                             .padding(.top, 8)
-                        } else {
-                            VStack(spacing: 12) {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.secondary)
-                                
-                                Text("Private Profile")
-                                    .font(.headline)
-                                
-                                Text("Add as a friend to see their activity")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.vertical, 40)
-                        }
                     }
                     .padding(.bottom, 100)
                 }
@@ -182,113 +102,539 @@ struct UserProfileView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .navigationTitle(userProfile?.username ?? "Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .background(
+            Group {
+                NavigationLink(
+                    destination: FollowListView(userId: userId, mode: .followers),
+                    isActive: $showFollowers
+                ) { EmptyView() }
+                
+                NavigationLink(
+                    destination: FollowListView(userId: userId, mode: .following),
+                    isActive: $showFollowing
+                ) { EmptyView() }
+            }
+            .hidden()
+        )
         .task {
             await loadProfile()
         }
     }
     
-    @ViewBuilder
-    private var friendActionButton: some View {
-        if isFriend {
-            Button(action: {
-                Task {
-                    isPerformingAction = true
-                    try? await socialManager.removeFriend(userId)
-                    isPerformingAction = false
+    // MARK: - Profile Header
+    
+    private func profileHeader(profile: UserProfile) -> some View {
+        VStack(spacing: 8) {
+            ZStack(alignment: .bottomTrailing) {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.utOrange, Color.utOrange.opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 90, height: 90)
+                    .overlay(
+                        Text(String(profile.displayName.prefix(1)).uppercased())
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(.white)
+                    )
+                
+                // Level Badge
+                ZStack {
+                    Circle()
+                        .fill(Color(.systemBackground))
+                        .frame(width: 32, height: 32)
+                    
+                    Circle()
+                        .fill(Color.utOrange)
+                        .frame(width: 26, height: 26)
+                    
+                    Text("\(profile.level)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
                 }
-            }) {
-                HStack(spacing: 8) {
-                    if isPerformingAction {
-                        ProgressView()
-                            .tint(.red)
-                    } else {
-                        Image(systemName: "person.badge.minus")
-                        Text("Remove Friend")
-                    }
+                .offset(x: 4, y: 4)
+                
+                // Online indicator
+                if profile.isCurrentlyWorkingOut {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 18, height: 18)
+                        .overlay(
+                            Circle()
+                                .stroke(Color(.systemBackground), lineWidth: 3)
+                        )
+                        .offset(x: -4, y: 4)
                 }
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.red)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(10)
             }
-            .disabled(isPerformingAction)
-        } else if friendshipStatus == .pending {
-            Text("Request Pending")
+            
+            Text(profile.displayName)
+                .font(.title3)
+                .fontWeight(.bold)
+            
+            Text("@\(profile.username)")
                 .font(.subheadline)
-                .fontWeight(.semibold)
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color(.systemGray5))
-                .cornerRadius(10)
-        } else {
-            Button(action: {
-                Task {
-                    isPerformingAction = true
-                    try? await socialManager.sendFriendRequest(to: userId)
-                    friendshipStatus = .pending
-                    isPerformingAction = false
-                }
-            }) {
-                HStack(spacing: 8) {
-                    if isPerformingAction {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Image(systemName: "person.badge.plus")
-                        Text("Add Friend")
-                    }
-                }
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color.utOrange)
-                .cornerRadius(10)
+        }
+        .padding(.top, 16)
+    }
+    
+    // MARK: - Stats Row
+    
+    private func statsRow(profile: UserProfile) -> some View {
+        HStack(spacing: 0) {
+            ProfileStatButton(value: "\(profile.postsCount)", label: "Posts") {
+                selectedTab = 0
             }
-            .disabled(isPerformingAction)
+            
+            ProfileStatButton(value: "\(profile.followersCount)", label: "Followers") {
+                showFollowers = true
+            }
+            
+            ProfileStatButton(value: "\(profile.followingCount)", label: "Following") {
+                showFollowing = true
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    // MARK: - Bio Section
+    
+    private func bioSection(profile: UserProfile) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !profile.bio.isEmpty {
+                Text(profile.bio)
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+            }
+            
+            // Level & Stats
+            HStack(spacing: 8) {
+                Image(systemName: "star.fill")
+                    .foregroundColor(.utOrange)
+                    .font(.caption)
+                
+                Text("Level \(profile.level)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                
+                Text("•")
+                    .foregroundColor(.secondary)
+                
+                Text("\(profile.totalXP) XP")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text("•")
+                    .foregroundColor(.secondary)
+                
+                Text("\(profile.totalWorkouts) workouts")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal)
+            
+            // Streak
+            if profile.currentStreak > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "flame.fill")
+                        .foregroundColor(.orange)
+                        .font(.caption)
+                    
+                    Text("\(profile.currentStreak) day streak")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+                .padding(.horizontal)
+            }
         }
     }
+    
+    // MARK: - Action Button
+    
+    private func actionButton(profile: UserProfile) -> some View {
+        Group {
+            if isOwnProfile {
+                // Edit Profile button for own profile
+                Button(action: {}) {
+                    Text("Edit Profile")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(.systemGray5))
+                        .cornerRadius(8)
+                }
+            } else if areFriends {
+                // Mutual follow - Friends (can unfollow)
+                Button(action: unfollowUser) {
+                    HStack(spacing: 8) {
+                        if isPerformingAction {
+                            ProgressView()
+                                .tint(.green)
+                        } else {
+                            Image(systemName: "person.2.fill")
+                            Text("Friends")
+                        }
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.green)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                .disabled(isPerformingAction)
+            } else if isFollowing {
+                // We follow them (can unfollow)
+                Button(action: unfollowUser) {
+                    HStack(spacing: 8) {
+                        if isPerformingAction {
+                            ProgressView()
+                                .tint(.primary)
+                        } else {
+                            Text("Following")
+                        }
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color(.systemGray5))
+                    .cornerRadius(8)
+                }
+                .disabled(isPerformingAction)
+            } else if hasRequestedFollow {
+                // Requested - waiting for approval (private profile)
+                Button(action: cancelFollowRequest) {
+                    HStack(spacing: 8) {
+                        if isPerformingAction {
+                            ProgressView()
+                                .tint(.secondary)
+                        } else {
+                            Text("Requested")
+                        }
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color(.systemGray5))
+                    .cornerRadius(8)
+                }
+                .disabled(isPerformingAction)
+            } else {
+                // Follow button (or Request for private)
+                Button(action: followUser) {
+                    HStack(spacing: 8) {
+                        if isPerformingAction {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text(isPrivateProfile ? "Request" : "Follow")
+                        }
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.utOrange)
+                    .cornerRadius(8)
+                }
+                .disabled(isPerformingAction)
+            }
+        }
+    }
+    
+    // MARK: - Working Out Banner
+    
+    private func workingOutBanner(profile: UserProfile) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color.green)
+                .frame(width: 10, height: 10)
+                .overlay(
+                    Circle()
+                        .stroke(Color.green.opacity(0.4), lineWidth: 4)
+                )
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Currently Working Out")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                
+                if let startTime = profile.currentWorkoutStartTime {
+                    Text("Started \(timeAgo(from: startTime))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            Image(systemName: "figure.strengthtraining.traditional")
+                .foregroundColor(.utOrange)
+        }
+        .padding()
+        .background(Color.green.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    // MARK: - Content Tabs
+    
+    private var contentTabs: some View {
+        HStack(spacing: 0) {
+            ProfileTabButton(icon: "square.grid.3x3.fill", isSelected: selectedTab == 0) {
+                selectedTab = 0
+            }
+            
+            ProfileTabButton(icon: "list.bullet", isSelected: selectedTab == 1) {
+                selectedTab = 1
+            }
+        }
+        .overlay(
+            Rectangle()
+                .fill(Color(.systemGray4))
+                .frame(height: 0.5),
+            alignment: .top
+        )
+    }
+    
+    // MARK: - Content View
+    
+    @ViewBuilder
+    private func contentView(profile: UserProfile) -> some View {
+        if profile.isPublic || isFollowing || isOwnProfile {
+            if selectedTab == 0 {
+                workoutGridView
+            } else {
+                workoutListView
+            }
+        } else {
+            // Private profile
+            VStack(spacing: 16) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(.secondary)
+                
+                Text("This Account is Private")
+                    .font(.headline)
+                
+                Text("Follow this account to see their workouts")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.vertical, 60)
+        }
+    }
+    
+    // MARK: - Workout Grid View
+    
+    private var workoutGridView: some View {
+        Group {
+            if userPosts.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "camera")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                    
+                    Text("No Posts Yet")
+                        .font(.headline)
+                }
+                .padding(.vertical, 60)
+            } else {
+                LazyVGrid(columns: gridColumns, spacing: 2) {
+                    ForEach(userPosts) { post in
+                        NavigationLink(destination: PostDetailView(post: post)) {
+                            PostGridCell(post: post)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Workout List View
+    
+    private var workoutListView: some View {
+        VStack(spacing: 12) {
+            ForEach(userPosts) { post in
+                NavigationLink(destination: PostDetailView(post: post)) {
+                    UserActivityCard(post: post)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Actions
     
     private func loadProfile() async {
         isLoading = true
         
-        // Clear any previous data first
         userProfile = nil
         userPosts = []
-        friendshipStatus = nil
+        isFollowing = false
+        isFollowedBy = false
+        hasRequestedFollow = false
         
-        // Fetch fresh data from Firestore
         userProfile = await socialManager.fetchUserProfile(byId: userId)
-        friendshipStatus = await socialManager.getFriendshipStatus(with: userId)
+        isFollowing = await socialManager.isFollowing(userId)
+        isFollowedBy = await socialManager.isFollowedBy(userId)
+        
+        // Check if we've sent a follow request (for private profiles)
+        if !isFollowing {
+            hasRequestedFollow = await socialManager.hasRequestedFollow(userId)
+        }
+        
         userPosts = await feedManager.fetchUserPosts(userId: userId)
         
         isLoading = false
     }
+    
+    private func followUser() {
+        isPerformingAction = true
+        
+        Task {
+            do {
+                try await socialManager.followUser(userId)
+                await MainActor.run {
+                    // For public profiles, we're now following
+                    // For private profiles, we've sent a request
+                    if userProfile?.isPublic == true {
+                        isFollowing = true
+                        if var profile = userProfile {
+                            profile.followersCount += 1
+                            userProfile = profile
+                        }
+                    } else {
+                        hasRequestedFollow = true
+                    }
+                }
+            } catch {
+                print("Error following user: \(error)")
+            }
+            
+            await MainActor.run {
+                isPerformingAction = false
+            }
+        }
+    }
+    
+    private func unfollowUser() {
+        isPerformingAction = true
+        
+        Task {
+            do {
+                try await socialManager.unfollowUser(userId)
+                await MainActor.run {
+                    isFollowing = false
+                    if var profile = userProfile {
+                        profile.followersCount = max(0, profile.followersCount - 1)
+                        userProfile = profile
+                    }
+                }
+            } catch {
+                print("Error unfollowing user: \(error)")
+            }
+            
+            await MainActor.run {
+                isPerformingAction = false
+            }
+        }
+    }
+    
+    private func cancelFollowRequest() {
+        isPerformingAction = true
+        
+        Task {
+            do {
+                try await socialManager.cancelFollowRequest(to: userId)
+                await MainActor.run {
+                    hasRequestedFollow = false
+                }
+            } catch {
+                print("Error cancelling follow request: \(error)")
+            }
+            
+            await MainActor.run {
+                isPerformingAction = false
+            }
+        }
+    }
+    
+    private func timeAgo(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
 }
 
-// MARK: - Profile Stat Item
+// MARK: - Post Grid Cell
 
-struct ProfileStatItem: View {
-    let value: String
-    let label: String
+struct PostGridCell: View {
+    let post: FeedPost
     
     var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
+        ZStack {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.utOrange.opacity(0.3), Color.utOrange.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
             
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            VStack(spacing: 4) {
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .font(.title2)
+                    .foregroundColor(.utOrange)
+                
+                Text("\(post.exerciseCount)")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                
+                Text("exercises")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Likes overlay
+            VStack {
+                Spacer()
+                HStack {
+                    HStack(spacing: 2) {
+                        Image(systemName: "heart.fill")
+                            .font(.caption2)
+                        Text("\(post.likesCount)")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(4)
+                    
+                    Spacer()
+                }
+                .padding(4)
+            }
         }
-        .frame(maxWidth: .infinity)
+        .aspectRatio(1, contentMode: .fill)
     }
 }
 
@@ -338,9 +684,21 @@ struct UserActivityCard: View {
             
             Spacer()
             
-            Text(timeAgo)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(timeAgo)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 8) {
+                    HStack(spacing: 2) {
+                        Image(systemName: "heart.fill")
+                            .font(.caption2)
+                        Text("\(post.likesCount)")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.red)
+                }
+            }
             
             Image(systemName: "chevron.right")
                 .font(.caption)
@@ -349,7 +707,6 @@ struct UserActivityCard: View {
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(12)
-        .padding(.horizontal)
     }
 }
 

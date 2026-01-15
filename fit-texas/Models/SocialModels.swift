@@ -20,9 +20,22 @@ struct UserProfile: Codable, Identifiable {
     var currentStreak: Int
     var longestStreak: Int
     var totalWorkouts: Int
+    var followersCount: Int
+    var followingCount: Int
+    var postsCount: Int
+    var isCurrentlyWorkingOut: Bool
+    var currentWorkoutStartTime: Date?
     var joinedDate: Date
     var isPublic: Bool  // Whether profile/workouts are visible to others
     var fcmToken: String?  // For push notifications
+    
+    enum CodingKeys: String, CodingKey {
+        case id, username, displayName, bio, profileImageURL
+        case totalXP, level, currentStreak, longestStreak, totalWorkouts
+        case followersCount, followingCount, postsCount
+        case isCurrentlyWorkingOut, currentWorkoutStartTime
+        case joinedDate, isPublic, fcmToken
+    }
     
     init(
         id: String,
@@ -35,6 +48,11 @@ struct UserProfile: Codable, Identifiable {
         currentStreak: Int = 0,
         longestStreak: Int = 0,
         totalWorkouts: Int = 0,
+        followersCount: Int = 0,
+        followingCount: Int = 0,
+        postsCount: Int = 0,
+        isCurrentlyWorkingOut: Bool = false,
+        currentWorkoutStartTime: Date? = nil,
         joinedDate: Date = Date(),
         isPublic: Bool = true,
         fcmToken: String? = nil
@@ -49,9 +67,52 @@ struct UserProfile: Codable, Identifiable {
         self.currentStreak = currentStreak
         self.longestStreak = longestStreak
         self.totalWorkouts = totalWorkouts
+        self.followersCount = followersCount
+        self.followingCount = followingCount
+        self.postsCount = postsCount
+        self.isCurrentlyWorkingOut = isCurrentlyWorkingOut
+        self.currentWorkoutStartTime = currentWorkoutStartTime
         self.joinedDate = joinedDate
         self.isPublic = isPublic
         self.fcmToken = fcmToken
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        username = try container.decode(String.self, forKey: .username)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        bio = try container.decodeIfPresent(String.self, forKey: .bio) ?? ""
+        profileImageURL = try container.decodeIfPresent(String.self, forKey: .profileImageURL)
+        totalXP = try container.decodeIfPresent(Int.self, forKey: .totalXP) ?? 0
+        level = try container.decodeIfPresent(Int.self, forKey: .level) ?? 1
+        currentStreak = try container.decodeIfPresent(Int.self, forKey: .currentStreak) ?? 0
+        longestStreak = try container.decodeIfPresent(Int.self, forKey: .longestStreak) ?? 0
+        totalWorkouts = try container.decodeIfPresent(Int.self, forKey: .totalWorkouts) ?? 0
+        followersCount = try container.decodeIfPresent(Int.self, forKey: .followersCount) ?? 0
+        followingCount = try container.decodeIfPresent(Int.self, forKey: .followingCount) ?? 0
+        postsCount = try container.decodeIfPresent(Int.self, forKey: .postsCount) ?? 0
+        isCurrentlyWorkingOut = try container.decodeIfPresent(Bool.self, forKey: .isCurrentlyWorkingOut) ?? false
+        currentWorkoutStartTime = try container.decodeIfPresent(Date.self, forKey: .currentWorkoutStartTime)
+        joinedDate = try container.decodeIfPresent(Date.self, forKey: .joinedDate) ?? Date()
+        isPublic = try container.decodeIfPresent(Bool.self, forKey: .isPublic) ?? true
+        fcmToken = try container.decodeIfPresent(String.self, forKey: .fcmToken)
+    }
+}
+
+// MARK: - Follow Relationship
+
+struct Follow: Codable, Identifiable {
+    var id: String { "\(followerId)_\(followingId)" }
+    let followerId: String  // User who is following
+    let followingId: String // User being followed
+    let createdAt: Date
+    
+    init(followerId: String, followingId: String, createdAt: Date = Date()) {
+        self.followerId = followerId
+        self.followingId = followingId
+        self.createdAt = createdAt
     }
 }
 

@@ -219,30 +219,52 @@ struct ExerciseDetailView: View {
                 }
             }
         .overlay(alignment: .bottom) {
-            if let onAdd = onAdd {
-                // Add Button - Smaller and more subtle
+            HStack(spacing: 12) {
+                // Favorite Button
                 Button(action: {
-                    onAdd()
-                    dismiss()
+                    FavoritesManager.shared.toggleFavorite(exercise.name)
                 }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill")
+                    HStack(spacing: 6) {
+                        Image(systemName: FavoritesManager.shared.isFavorite(exercise.name) ? "star.fill" : "star")
                             .font(.body)
-                        Text("Add to Workout")
+                        Text("Favorite")
                             .font(.subheadline.weight(.semibold))
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
+                    .foregroundColor(.utOrange)
+                    .padding(.horizontal, 20)
                     .padding(.vertical, 12)
                     .background(
                         Capsule()
-                            .fill(Color.utOrange)
-                            .shadow(color: Color.utOrange.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .fill(Color.utOrange.opacity(0.15))
                     )
                 }
                 .buttonStyle(.plain)
-                .padding(.bottom, 24)
+                
+                if let onAdd = onAdd {
+                    // Add Button
+                    Button(action: {
+                        onAdd()
+                        dismiss()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.body)
+                            Text("Add to Workout")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(Color.utOrange)
+                                .shadow(color: Color.utOrange.opacity(0.3), radius: 8, x: 0, y: 4)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(.bottom, 24)
         }
         .onAppear {
             startImageTimer()

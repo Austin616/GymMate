@@ -16,30 +16,6 @@ struct FriendsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            CustomTabHeader(
-                title: "Friends",
-                leadingButton: AnyView(
-                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                            Text("Back")
-                        }
-                        .foregroundColor(.utOrange)
-                    }
-                ),
-                trailingButton: AnyView(
-                    Button(action: { showUserSearch = true }) {
-                        Image(systemName: "person.badge.plus")
-                            .foregroundColor(.utOrange)
-                            .font(.title3)
-                    }
-                ),
-                isSubScreen: true
-            )
-            
             // Tab Picker
             Picker("", selection: $selectedTab) {
                 Text("Friends (\(socialManager.friends.count))").tag(0)
@@ -55,13 +31,16 @@ struct FriendsView: View {
                 FriendRequestsView()
             }
         }
-        .navigationBarHidden(true)
-        .background(
-            NavigationLink(destination: UserSearchView(), isActive: $showUserSearch) {
-                EmptyView()
+        .navigationTitle("Friends")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                NavigationLink(destination: UserSearchView()) {
+                    Image(systemName: "person.badge.plus")
+                        .foregroundColor(.utOrange)
+                }
             }
-            .hidden()
-        )
+        }
     }
 }
 

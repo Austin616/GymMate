@@ -42,37 +42,7 @@ struct StepTrackerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Custom Header
-            HStack {
-                Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.body)
-                            .fontWeight(.semibold)
-                        Text("Back")
-                    }
-                    .foregroundColor(.utOrange)
-                }
-                
-                Spacer()
-                
-                Text("Steps")
-                    .font(.headline)
-                
-                Spacer()
-                
-                Button(action: {
-                    newGoalText = "\(dailyGoal)"
-                    showGoalSheet = true
-                }) {
-                    Image(systemName: "target")
-                        .foregroundColor(.utOrange)
-                }
-            }
-            .padding()
-            
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 20) {
                     // View Mode Selector (single segmented control)
                     Picker("View", selection: $viewMode) {
@@ -143,8 +113,19 @@ struct StepTrackerView: View {
                 }
                 .padding(.vertical, 16)
             }
+        .navigationTitle("Steps")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    newGoalText = "\(dailyGoal)"
+                    showGoalSheet = true
+                }) {
+                    Image(systemName: "target")
+                        .foregroundColor(.utOrange)
+                }
+            }
         }
-        .navigationBarHidden(true)
         .sheet(isPresented: $showGoalSheet) {
             GoalSheetView(goalText: $newGoalText, onSave: {
                 if let newGoal = Int(newGoalText), newGoal > 0 {

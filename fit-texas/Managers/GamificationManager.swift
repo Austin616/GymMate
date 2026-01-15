@@ -52,20 +52,111 @@ class GamificationManager: ObservableObject {
     }
     
     private func resetState() {
-        totalXP = 0
-        currentLevel = 1
-        unlockedAchievements = []
-        activeChallenges = []
-        userChallenges = []
+        print("🧹 [GAMIFICATION] Removing listeners and resetting state")
+        achievementsListener?.remove()
+        achievementsListener = nil
+        challengesListener?.remove()
+        challengesListener = nil
+        
+        DispatchQueue.main.async {
+            self.totalXP = 0
+            self.currentLevel = 1
+            self.unlockedAchievements = []
+            self.activeChallenges = []
+            self.userChallenges = []
+            self.recentlyUnlockedAchievement = nil
+            self.showLevelUpCelebration = false
+        }
+        print("🧹 [GAMIFICATION] State reset")
     }
     
     // MARK: - Load Data
     
     private func loadUserGamificationData(userId: String) {
-        // Load from user profile
-        if let profile = SocialManager.shared.currentUserProfile {
-            totalXP = profile.totalXP
-            currentLevel = profile.level
+        print("🔵 [GAMIFICATION] Loading user data for: \(userId)")
+        
+        // Fetch directly from Firestore instead of relying on SocialManager
+        db.collection("users").document(userId)
+            .collection("profile").document("data")
+            .getDocument { [weak self] snapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    print("❌ [GAMIFICATION] Error loading user data: \(error)")
+                    return
+                }
+                
+                guard let data = snapshot?.data() else {
+                    print("ℹ️ [GAMIFICATION] No profile data found")
+                    return
+                }
+                
+                let loadedXP = data["totalXP"] as? Int ?? 0
+                let loadedLevel = data["level"] as? Int ?? 1
+                
+                DispatchQueue.main.async {
+                    self.totalXP = loadedXP
+                    self.currentLevel = loadedLevel
+                    print("✅ [GAMIFICATION] Loaded XP: \(self.totalXP), Level: \(self.currentLevel)")
+                    
+                    // If XP is 0 but we have achievements, recalculate
+                    if loadedXP == 0 {
+                        Task {
+                            await self.syncXPFromAchievements(userId: userId)
+                        }
+                    }
+                }
+            }
+    }
+    
+    // Recalculate XP from unlocked achievements (for users with missing XP data)
+    private func syncXPFromAchievements(userId: String) async {
+        print("🔵 [GAMIFICATION] Syncing XP from achievements...")
+        
+        do {
+            // Fetch all user achievements
+            let snapshot = try await db.collection("users").document(userId)
+                .collection("achievements")
+                .getDocuments()
+            
+            guard !snapshot.documents.isEmpty else {
+                print("ℹ️ [GAMIFICATION] No achievements to sync")
+                return
+            }
+            
+            // Calculate total XP from achievements
+            var calculatedXP = 0
+            for doc in snapshot.documents {
+                if let achievementId = doc.data()["achievementId"] as? String,
+                   let achievement = PredefinedAchievements.achievement(byId: achievementId) {
+                    calculatedXP += achievement.xpReward
+                    print("   + \(achievement.xpReward) XP from \(achievement.name)")
+                }
+            }
+            
+            guard calculatedXP > 0 else {
+                print("ℹ️ [GAMIFICATION] No XP to sync")
+                return
+            }
+            
+            let calculatedLevel = LevelSystem.levelFromXP(calculatedXP)
+            
+            // Save to Firestore
+            try await db.collection("users").document(userId)
+                .collection("profile").document("data")
+                .setData([
+                    "totalXP": calculatedXP,
+                    "level": calculatedLevel
+                ], merge: true)
+            
+            // Update local state
+            DispatchQueue.main.async {
+                self.totalXP = calculatedXP
+                self.currentLevel = calculatedLevel
+                print("✅ [GAMIFICATION] Synced XP: \(calculatedXP), Level: \(calculatedLevel)")
+            }
+        } catch {
+            print("❌ [GAMIFICATION] Error syncing XP: \(error)")
         }
     }
     
@@ -141,13 +232,13 @@ class GamificationManager: ObservableObject {
         let newTotalXP = totalXP + amount
         let calculatedLevel = LevelSystem.levelFromXP(newTotalXP)
         
-        // Update in Firestore
+        // Update in Firestore (use setData with merge to handle new documents)
         try await db.collection("users").document(userId)
             .collection("profile").document("data")
-            .updateData([
+            .setData([
                 "totalXP": newTotalXP,
                 "level": calculatedLevel
-            ])
+            ], merge: true)
         
         // Update local state
         DispatchQueue.main.async {
@@ -188,6 +279,9 @@ class GamificationManager: ObservableObject {
         
         print("🔵 [GAMIFICATION] Processing workout completion...")
         
+        // Update profile stats (totalWorkouts, currentStreak, longestStreak)
+        await updateProfileStats(userId: userId, workoutCount: workoutCount, streakDays: streakDays)
+        
         // Check if this is the first workout today
         let isFirstWorkoutToday = await checkFirstWorkoutToday(userId: userId)
         
@@ -227,6 +321,40 @@ class GamificationManager: ObservableObject {
             volume: totalVolume,
             exerciseCount: exerciseCount
         )
+    }
+    
+    private func updateProfileStats(userId: String, workoutCount: Int, streakDays: Int) async {
+        print("🔵 [GAMIFICATION] Updating profile stats...")
+        
+        // Get current longest streak
+        var longestStreak = streakDays
+        if let currentProfile = SocialManager.shared.currentUserProfile {
+            longestStreak = max(currentProfile.longestStreak, streakDays)
+        }
+        
+        do {
+            try await db.collection("users").document(userId)
+                .collection("profile").document("data")
+                .updateData([
+                    "totalWorkouts": workoutCount,
+                    "currentStreak": streakDays,
+                    "longestStreak": longestStreak
+                ])
+            
+            // Update local profile
+            DispatchQueue.main.async {
+                if var profile = SocialManager.shared.currentUserProfile {
+                    profile.totalWorkouts = workoutCount
+                    profile.currentStreak = streakDays
+                    profile.longestStreak = longestStreak
+                    SocialManager.shared.currentUserProfile = profile
+                }
+            }
+            
+            print("✅ [GAMIFICATION] Profile stats updated")
+        } catch {
+            print("❌ [GAMIFICATION] Error updating profile stats: \(error)")
+        }
     }
     
     private func checkFirstWorkoutToday(userId: String) async -> Bool {
@@ -466,18 +594,26 @@ class GamificationManager: ObservableObject {
     // MARK: - Helper Methods
     
     func getAchievementProgress(for achievement: Achievement) -> (current: Int, target: Int) {
-        guard let userId = Auth.auth().currentUser?.uid else { return (0, achievement.requirement) }
+        let profile = SocialManager.shared.currentUserProfile
         
-        // This would need to calculate based on achievement type
-        // For now, return a placeholder
         switch achievement.category {
         case .workouts:
-            return (SocialManager.shared.currentUserProfile?.totalWorkouts ?? 0, achievement.requirement)
+            let current = profile?.totalWorkouts ?? WorkoutHistoryManager.shared.savedWorkouts.count
+            return (current, achievement.requirement)
         case .streak:
-            return (SocialManager.shared.currentUserProfile?.currentStreak ?? 0, achievement.requirement)
+            let current = profile?.currentStreak ?? 0
+            return (current, achievement.requirement)
         case .social:
-            return (SocialManager.shared.friends.count, achievement.requirement)
-        default:
+            let current = profile?.followersCount ?? 0
+            return (current, achievement.requirement)
+        case .volume:
+            // Calculate total volume from saved workouts
+            let totalVolume = WorkoutHistoryManager.shared.savedWorkouts.reduce(0.0) { $0 + $1.totalVolume }
+            return (Int(totalVolume), achievement.requirement)
+        case .milestone:
+            if achievement.id.contains("level") {
+                return (currentLevel, achievement.requirement)
+            }
             return (0, achievement.requirement)
         }
     }

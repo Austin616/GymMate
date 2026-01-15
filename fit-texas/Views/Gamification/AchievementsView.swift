@@ -29,25 +29,7 @@ struct AchievementsView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            CustomTabHeader(
-                title: "Achievements",
-                leadingButton: AnyView(
-                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                            Text("Back")
-                        }
-                        .foregroundColor(.utOrange)
-                    }
-                ),
-                isSubScreen: true
-            )
-            
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 20) {
                     // Progress Summary
                     VStack(spacing: 12) {
@@ -117,8 +99,8 @@ struct AchievementsView: View {
                 }
                 .padding(.top)
             }
-        }
-        .navigationBarHidden(true)
+        .navigationTitle("Achievements")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

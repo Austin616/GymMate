@@ -233,6 +233,9 @@ struct PopularExerciseCard: View {
 struct SearchResultRow: View {
     let exercise: Exercise
     let onAdd: () -> Void
+    var showAddButton: Bool = true
+    var isInActiveWorkout: Bool = false
+    @StateObject private var favoritesManager = FavoritesManager.shared
 
     var body: some View {
         HStack(spacing: 12) {
@@ -267,12 +270,26 @@ struct SearchResultRow: View {
 
             Spacer()
 
-            Button(action: onAdd) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title3)
-                    .foregroundColor(.utOrange)
+            if showAddButton {
+                if isInActiveWorkout {
+                    Button(action: onAdd) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(.utOrange)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    // Favorite button when not in workout
+                    Button(action: {
+                        favoritesManager.toggleFavorite(exercise.name)
+                    }) {
+                        Image(systemName: favoritesManager.isFavorite(exercise.name) ? "star.fill" : "star")
+                            .font(.title3)
+                            .foregroundColor(.utOrange)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
         }
         .padding()
         .background(Color(.systemGray6))
@@ -285,12 +302,17 @@ struct SearchResultRow: View {
 
 struct MuscleGroupExercisesView: View {
     let muscleGroup: String
+    @ObservedObject private var historyManager = WorkoutHistoryManager.shared
     @State private var showingExerciseDetail: Exercise?
 
     private var exercises: [Exercise] {
         ExerciseLoader.shared.getAllExercises().filter { exercise in
             exercise.primaryMuscles?.contains { $0.lowercased() == muscleGroup.lowercased() } ?? false
         }
+    }
+    
+    private var isInActiveWorkout: Bool {
+        historyManager.hasDraft
     }
 
     var body: some View {
@@ -322,21 +344,30 @@ struct MuscleGroupExercisesView: View {
 
                 // Exercises List
                 ForEach(exercises) { exercise in
-                    Button(action: {
-                        showingExerciseDetail = exercise
-                    }) {
-                        SearchResultRow(exercise: exercise, onAdd: {})
+                    NavigationLink(destination: ExerciseDetailView(exercise: exercise)) {
+                        SearchResultRow(
+                            exercise: exercise,
+                            onAdd: { addExerciseToWorkout(exercise.name) },
+                            isInActiveWorkout: isInActiveWorkout
+                        )
                     }
                     .buttonStyle(.plain)
                 }
 
                 Spacer(minLength: 50)
             }
+            .padding(.horizontal)
         }
+        .navigationTitle(muscleGroup.capitalized)
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $showingExerciseDetail) { exercise in
-            ExerciseDetailView(exercise: exercise)
-        }
+    }
+    
+    private func addExerciseToWorkout(_ exerciseName: String) {
+        NotificationCenter.default.post(
+            name: NSNotification.Name("AddExerciseToWorkout"),
+            object: nil,
+            userInfo: ["exerciseName": exerciseName]
+        )
     }
 }
 

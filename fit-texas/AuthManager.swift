@@ -68,6 +68,9 @@ class AuthManager: ObservableObject {
         // The auth listeners in each manager will handle the full reset,
         // but we trigger an immediate UI update here
         
+        // Clear stats cache
+        StatsService.shared.clearCache()
+        
         DispatchQueue.main.async {
             // SocialManager will be reset by its auth listener
             SocialManager.shared.currentUserProfile = nil
@@ -85,8 +88,10 @@ class AuthManager: ObservableObject {
             GamificationManager.shared.unlockedAchievements = []
             GamificationManager.shared.activeChallenges = []
             GamificationManager.shared.userChallenges = []
+            GamificationManager.shared.recentlyUnlockedAchievement = nil
+            GamificationManager.shared.showLevelUpCelebration = false
         }
         
-        print("🔄 [AUTH] Reset all managers")
+        print("🔄 [AUTH] Reset all managers and caches")
     }
 }

@@ -66,8 +66,7 @@ class WorkoutHistoryManager: ObservableObject {
     static let shared = WorkoutHistoryManager()
 
     @Published var savedWorkouts: [SavedWorkout] = []
-    @Published var isOnline: Bool = true
-    @Published var isSyncing: Bool = false
+    @Published var isLoading: Bool = false
     @Published var currentDraft: WorkoutDraft?
 
     private let repository = WorkoutRepository()
@@ -85,23 +84,17 @@ class WorkoutHistoryManager: ObservableObject {
         print("🔵 [HISTORY] Setting up repository observers...")
 
         repository.$workouts
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] workouts in
                 print("🔵 [HISTORY] Workouts updated: \(workouts.count) workouts")
                 self?.savedWorkouts = workouts
             }
             .store(in: &cancellables)
 
-        repository.$isOnline
-            .sink { [weak self] online in
-                print("🔵 [HISTORY] Online status: \(online)")
-                self?.isOnline = online
-            }
-            .store(in: &cancellables)
-
-        repository.$isSyncing
-            .sink { [weak self] syncing in
-                print("🔵 [HISTORY] Syncing status: \(syncing)")
-                self?.isSyncing = syncing
+        repository.$isLoading
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] loading in
+                self?.isLoading = loading
             }
             .store(in: &cancellables)
     }
@@ -115,19 +108,11 @@ class WorkoutHistoryManager: ObservableObject {
     }
 
     func toggleFavorite(_ workout: SavedWorkout) {
-        var updatedWorkout = workout
-        updatedWorkout.isFavorite.toggle()
-
-        // Update workout (saveWorkout will overwrite the existing one)
-        repository.saveWorkout(updatedWorkout)
+        repository.toggleFavorite(workout)
     }
 
     func updateWorkout(_ workout: SavedWorkout) {
-        repository.saveWorkout(workout)
-    }
-
-    func syncAllWorkouts() {
-        repository.syncAllWorkouts()
+        repository.updateWorkout(workout)
     }
 
     // MARK: - Draft Management
